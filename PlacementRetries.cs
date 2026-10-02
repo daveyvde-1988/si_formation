@@ -28,6 +28,8 @@ namespace Si_Formation
             internal float NextAttempt;
             internal AttackOperation Attack;
             internal SoftGroup Soft;
+            internal bool TwoStage;
+            internal PlacementCache Cache;
             internal IEnumerator<bool> Search;
             internal readonly List<RetryUnit> Pending=new List<RetryUnit>();
             internal readonly List<Placement> Reserved=new List<Placement>();
@@ -49,7 +51,7 @@ namespace Si_Formation
             batch.Reserved.AddRange(issued);
             foreach(var unit in units.Where(u=>!issued.Any(p=>p.Unit==u)))
                 batch.Pending.Add(new RetryUnit {Unit=unit,Group=unit.AIGroup,Orders=unit.OrderAgent.Orders.Select(o=>o.Id).ToArray()});
-            if(batch.Pending.Count>0)PlacementRetries.Add(batch);
+            if(batch.Pending.Count>0){PlacementRetries.Add(batch);PrepareInitialMove(batch);}
         }
         private static void ClearOrders(){ClearLocks();Operations.Clear();PlacementRetries.Clear();SoftGroups.Clear();SoftMotions.Clear();DepartureSpeeds.Clear();SoftSpeedCaps.Clear();}
         private static bool BatchCurrent(PlacementRetry b)=>b.Player&&Player.Players.Contains(b.Player)&&b.Player.Team==b.Team&&b.Player.IsCommander==b.Commander&&
@@ -69,17 +71,23 @@ namespace Si_Formation
             for(int work=0,steps=0;work<12&&steps<1024&&clock.ElapsedMilliseconds<2&&PlacementRetries.Count>0;steps++)
             {
                 var batch=PlacementRetries[(placementCursor++&int.MaxValue)%PlacementRetries.Count];
-                if(!BatchCurrent(batch)){PlacementRetries.Remove(batch);continue;}
+                if(!BatchCurrent(batch)){batch.Search?.Dispose();PlacementRetries.Remove(batch);SoftMotions.RemoveAll(m=>m.Batch==batch);continue;}
                 if(batch.Reserved.RemoveAll(p=>!Available(p.Unit)||p.Unit.Team!=batch.Team)>0)
                 {batch.Search?.Dispose();batch.Search=null;batch.Attempt=Math.Max(0,batch.Attempt-1);}
                 batch.Pending.RemoveAll(p=>!PendingCurrent(batch,p.Unit));
                 if(batch.Pending.Count==0){FinishPlacement(batch);continue;}
+                if(batch.TwoStage)
+                {
+                    int initial=TickInitialMove(batch);
+                    if(initial!=0){if(initial>0)work+=initial;continue;}
+                }
                 if(Time.unscaledTime<batch.NextAttempt)continue;
                 if(batch.Search==null)
                 {
                     batch.Attempt++;
+                    if(batch.Cache==null)batch.Cache=new PlacementCache(batch.Definition,batch.Centre,batch.Forward,batch.Soft.Mirrored);
                     batch.Search=SearchRemembered(batch.Soft.Slots,batch.Definition,batch.Pending.Select(p=>p.Unit).ToArray(),batch.Centre,batch.Forward,batch.Reserved,
-                        u=>PendingCurrent(batch,u),p=>IssuePlacement(batch,p),batch.Soft.Mirrored).GetEnumerator();
+                        u=>PendingCurrent(batch,u),p=>IssuePlacement(batch,p),batch.Soft.Mirrored,batch.Cache).GetEnumerator();
                 }
                 if(batch.Search.MoveNext()){if(batch.Search.Current)work++;continue;}
                 batch.Search.Dispose();batch.Search=null;
@@ -92,15 +100,17 @@ namespace Si_Formation
             if(!PendingCurrent(batch,p.Unit))return false;
             batch.Soft.Slots[p.Unit]=p.Slot;
             SoftMotions.Add(new SoftMotion {Batch=batch,Placement=p,Group=p.Unit.AIGroup,
-                Previous=p.Unit.OrderAgent.Orders.Select(o=>o.Id).ToArray()});
+                Previous=p.Unit.OrderAgent.Orders.Select(o=>o.Id).ToArray(),Departure=batch.TwoStage?Time.unscaledTime:float.PositiveInfinity});
             batch.Pending.RemoveAll(v=>v.Unit==p.Unit);
             return true;
         }
         private static void FinishPlacement(PlacementRetry batch)
         {
             PlacementRetries.Remove(batch);batch.Search?.Dispose();batch.Search=null;
+            foreach(var motion in SoftMotions.Where(m=>m.Batch==batch&&m.Initial).ToArray())
+            {SoftMotions.Remove(motion);RemoveDepartureUnit(motion.Placement.Unit);}
             StartSoftDepartures(batch);
-            if(batch.Pending.Count>0)Reply(batch.Player,batch.Reserved.Count+" units placed; "+batch.Pending.Count+" could not use any remaining position after three complete colour passes.");
+            if(batch.Pending.Count>0)Trace(batch.Reserved.Count+" units placed; "+batch.Pending.Count+" remain on their previous/native orders after three passes.");
         }
     }
 }

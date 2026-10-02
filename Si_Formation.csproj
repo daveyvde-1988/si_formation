@@ -4,7 +4,7 @@
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <AssemblyName>Si_Formation</AssemblyName>
-    <Version>2.7.0</Version>
+    <Version>2.8.0</Version>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <ServerRoot Condition="'$(ServerRoot)' == ''">$(MSBuildThisFileDirectory)..\..</ServerRoot>
   </PropertyGroup>
@@ -16,6 +16,8 @@
     <Compile Include="FormationData.cs" />
     <Compile Include="FormationOrders.cs" />
     <Compile Include="PlacementRetries.cs" />
+    <Compile Include="PlacementCache.cs" />
+    <Compile Include="InitialFormationMove.cs" />
     <Compile Include="SoftLocks.cs" />
     <Compile Include="DepartureSpeed.cs" />
     <Compile Include="CentreCoordination.cs" />

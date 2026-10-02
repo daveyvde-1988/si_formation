@@ -76,9 +76,8 @@ namespace Si_Formation
         {
             if(!CommanderAuthorized(p))return;
             Options(p).Pending=action;
-            Reply(p,action==1?"Formation lock armed for one move. Select at least three ground units and issue a move order.":
-                "Scouting armed. Select units and issue a move order; the clicked destination will be ignored.");
-            Reply(p,action==1?"Any pending scout action was replaced. AI-controlled ground infantry, vehicles and alien units are supported.":"Any pending formation lock was replaced.");
+            if(action==1){Reply(p,"formation lock armed for one move");return;}
+            Reply(p,"Scouting armed. Select units and issue a move order; the clicked destination will be ignored.");
         }
         private static void SetCommanderOption(Player p,string text,int index)
         {

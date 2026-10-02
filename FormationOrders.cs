@@ -13,7 +13,7 @@ namespace Si_Formation
             internal Unit Unit;
             internal int Slot;
             internal float Radius;
-            internal Vector3 Point,Approach;
+            internal Vector3 Point;
             internal uint OrderId;
         }
         private sealed class AttackOperation
@@ -59,7 +59,7 @@ namespace Si_Formation
             if(members.Length<=2){ClearFormationSelection(members);return false;}
             PrepareFormationSelection(player,members);
             if(members.Length>ConfiguredPlayerLimit(player)-1||members.Length>GroupLimit||members.Any(u=>u.Team!=player.Team||!Available(u)))
-            {Reply(player,$"formation not applied: FPS limit is {ConfiguredPlayerLimit(player)-1} eligible ground units; original order retained.");return false;}
+            {MoveReply(player,$"formation not applied: FPS limit is {ConfiguredPlayerLimit(player)-1} eligible ground units; original order retained.");return false;}
             Vector3 heading=Heading(centre-player.ControlledUnit.transform.position);
 
             // Validate attack intent before handing the selection to the staged placement job.
@@ -118,7 +118,7 @@ namespace Si_Formation
             if(f==null||!FunctionActive(issuer,"commander"))return true;
             // This cap governs formation handling, not the native game's command capacity.
             if(objects==null||objects.Count<=2)return true;
-            if(objects.Count>CommanderOrderLimit){Reply(issuer,"selection exceeds commander formation capacity "+CommanderOrderLimit+"; entire order left to game.");return true;}
+            if(objects.Count>CommanderOrderLimit){MoveReply(issuer,"selection exceeds commander formation capacity "+CommanderOrderLimit+"; entire order left to game.");return true;}
             try
             {
                 var units=objects.OfType<Unit>().Distinct().ToArray();

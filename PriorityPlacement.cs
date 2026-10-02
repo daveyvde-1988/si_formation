@@ -11,8 +11,9 @@ namespace Si_Formation
         // One yielded step performs at most one navigation projection. The scheduler shares
         // its frame budget between jobs. A budget boundary never advances a colour tier.
         private static IEnumerable<bool> SearchPositions(FormationDefinition f,Unit[] units,Vector3 centre,Vector3 forward,
-            List<Placement> reserved,Func<Unit,bool> current,Func<Placement,bool> issue,bool mirrored=false)
+            List<Placement> reserved,Func<Unit,bool> current,Func<Placement,bool> issue,bool mirrored=false,PlacementCache cache=null)
         {
+            if(cache==null)cache=new PlacementCache(f,centre,forward,mirrored);
             var assigned=new HashSet<Unit>(reserved.Select(p=>p.Unit));
             var used=new HashSet<int>(reserved.Select(p=>p.Slot));
             for(int colour=0;colour<4;colour++)
@@ -25,22 +26,19 @@ namespace Si_Formation
                     for(int index=0;index<f.Slots.Length;index++)
                     {
                         var slot=f.Slots[index];
-                        if(FormationDefinition.Colour(slot)!=colour||used.Contains(index)||!FormationDefinition.Allows(slot,UnitId(u),PreferenceType(u)))continue;
+                        if(cache.Colour(index)!=colour||used.Contains(index)||!cache.Allows(u,index))continue;
                         // Cancellations can arrive between any two yields.
                         if(!current(u))break;
-                        float radius=Radius(u,f,slot);var desired=World(slot,f,centre,forward,mirrored);
+                        float radius=cache.UnitRadius(u);var desired=cache.Point(index);
                         if(Separated(desired,radius,reserved)&&TerrainProjection.TryProject(u,desired,out var point)&&Separated(point,radius,reserved))
                         {
                             var target=new OrderTarget(point);
                             bool canMove=u.OrderAgent.CanIssueOrder(OrderDefinitionRegistry.Move,in target);
-                            yield return true;
-                            if(!current(u))break;
-                            if(canMove&&ApproachPoint(u,point,f.DirectionSensitive?forward:Vector3.forward,out var approach))
-                                candidates.Add(new Placement {Unit=u,Slot=index,Point=point,Approach=approach,Radius=radius});
+                            if(canMove)candidates.Add(new Placement {Unit=u,Slot=index,Point=point,Radius=radius});
                         }
                         yield return true;
                     }
-                    candidates.Sort((a,b)=>{int c=FormationDefinition.Match(f.Slots[a.Slot],UnitId(u),PreferenceType(u)).CompareTo(FormationDefinition.Match(f.Slots[b.Slot],UnitId(u),PreferenceType(u)));return c!=0?c:a.Slot.CompareTo(b.Slot);});
+                    candidates.Sort((a,b)=>{int c=cache.Rank(u,a.Slot).CompareTo(cache.Rank(u,b.Slot));return c!=0?c:a.Slot.CompareTo(b.Slot);});
                 }
                 // Maximum bipartite matching within a colour prevents a flexible unit from
                 // stranding a unit with only one reachable slot. Preferences order its edges.
@@ -53,11 +51,11 @@ namespace Si_Formation
                         yield return false;
                     }
                     var owners=new Dictionary<int,Placement>();
-                    foreach(var step in MatchPlacements(f,edges,owners))yield return step;
+                    foreach(var step in MatchPlacements(f,edges,owners,cache))yield return step;
                     if(owners.Count==0)break;
                     // Apply the matching, checking pairwise spacing as positions are reserved.
                     // Re-match only the residual group after failures or spacing conflicts.
-                    foreach(var choice in owners.Values.OrderBy(p=>FormationDefinition.Match(f.Slots[p.Slot],UnitId(p.Unit),PreferenceType(p.Unit)))
+                    foreach(var choice in owners.Values.OrderBy(p=>cache.Rank(p.Unit,p.Slot))
                         .ThenBy(p=>edges[p.Unit].Count).ThenBy(p=>p.Slot))
                     {
                         if(current(choice.Unit)&&Separated(choice.Point,choice.Radius,reserved)&&issue(choice))
@@ -68,7 +66,7 @@ namespace Si_Formation
                 }
             }
         }
-        private static IEnumerable<bool> MatchPlacements(FormationDefinition f,Dictionary<Unit,List<Placement>> edges,Dictionary<int,Placement> owners)
+        private static IEnumerable<bool> MatchPlacements(FormationDefinition f,Dictionary<Unit,List<Placement>> edges,Dictionary<int,Placement> owners,PlacementCache cache)
         {
             // Successive shortest alternating paths: maximum cardinality first, then
             // lexicographically most explicit matches, category matches, unrestricted slots.
@@ -77,7 +75,7 @@ namespace Si_Formation
             int basis=edges.Count+1;
             long Cost(Placement p)
             {
-                int rank=FormationDefinition.Match(f.Slots[p.Slot],UnitId(p.Unit),PreferenceType(p.Unit));
+                int rank=cache.Rank(p.Unit,p.Slot);
                 return rank==0?0:rank==1?basis*basis:rank==2?basis*basis+basis:basis*basis+basis+1;
             }
             while(true)

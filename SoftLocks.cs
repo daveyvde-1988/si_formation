@@ -26,7 +26,7 @@ namespace Si_Formation
             internal AIGroup Group;
             internal uint[] Previous;
             internal float Departure=float.PositiveInfinity;
-            internal bool Approaching;
+            internal bool Initial;
         }
         private static readonly List<SoftGroup> SoftGroups=new List<SoftGroup>();
         private static readonly List<SoftMotion> SoftMotions=new List<SoftMotion>();
@@ -71,42 +71,31 @@ namespace Si_Formation
             foreach(var u in units)ForgetSoftUnit(u);
             SoftGroups.Add(next);return next;
         }
-        private static bool ApproachPoint(Unit u,Vector3 point,Vector3 forward,out Vector3 approach)
-        {
-            if(!TerrainProjection.TryProject(u,point-forward*10,out approach))return false;
-            // Reject navigation snaps that erase or reverse the final forward approach.
-            if(Vector3.Dot(Flat(point-approach),forward)<5)return false;
-            var target=new OrderTarget(approach);
-            return u.OrderAgent.CanIssueOrder(OrderDefinitionRegistry.Move,in target);
-        }
         private static IEnumerable<bool> SearchRemembered(Dictionary<Unit,int> saved,FormationDefinition f,Unit[] units,
-            Vector3 centre,Vector3 forward,List<Placement> reserved,Func<Unit,bool> current,Func<Placement,bool> issue,bool mirrored=false)
+            Vector3 centre,Vector3 forward,List<Placement> reserved,Func<Unit,bool> current,Func<Placement,bool> issue,bool mirrored=false,PlacementCache cache=null)
         {
+            if(cache==null)cache=new PlacementCache(f,centre,forward,mirrored);
             foreach(var u in units)
             {
                 if(!current(u)||reserved.Any(p=>p.Unit==u)||!saved.TryGetValue(u,out int index))continue;
                 if(index<0||index>=f.Slots.Length||reserved.Any(p=>p.Slot==index)){saved.Remove(u);continue;}
                 var slot=f.Slots[index];
-                if(!FormationDefinition.Allows(slot,UnitId(u),PreferenceType(u))){saved.Remove(u);continue;}
-                float radius=Radius(u,f,slot);
-                bool valid=TerrainProjection.TryProject(u,World(slot,f,centre,forward,mirrored),out var point)&&Separated(point,radius,reserved);
+                if(!cache.Allows(u,index)){saved.Remove(u);continue;}
+                float radius=cache.UnitRadius(u);
+                bool valid=TerrainProjection.TryProject(u,cache.Point(index),out var point)&&Separated(point,radius,reserved);
                 yield return true;
                 if(!current(u))continue;
                 var target=new OrderTarget(point);
-                Vector3 approach=point;
-                valid=valid&&u.OrderAgent.CanIssueOrder(OrderDefinitionRegistry.Move,in target)&&
-                    ApproachPoint(u,point,f.DirectionSensitive?forward:Vector3.forward,out approach);
-                yield return true;
-                if(!current(u))continue;
-                var p=new Placement {Unit=u,Slot=index,Point=point,Approach=approach,Radius=radius};
+                valid=valid&&u.OrderAgent.CanIssueOrder(OrderDefinitionRegistry.Move,in target);
+                var p=new Placement {Unit=u,Slot=index,Point=point,Radius=radius};
                 if(valid&&issue(p))reserved.Add(p);else saved.Remove(u);
                 yield return true;
             }
-            foreach(var step in SearchPositions(f,units,centre,forward,reserved,current,issue,mirrored))yield return step;
+            foreach(var step in SearchPositions(f,units,centre,forward,reserved,current,issue,mirrored,cache))yield return step;
         }
         private static void StartSoftDepartures(PlacementRetry batch)
         {
-            var waiting=SoftMotions.Where(m=>m.Batch==batch&&float.IsPositiveInfinity(m.Departure)).ToArray();
+            var waiting=SoftMotions.Where(m=>m.Batch==batch&&!m.Initial&&float.IsPositiveInfinity(m.Departure)).ToArray();
             var rows=SoftDepartureBatches(waiting.Select(m=>m.Placement.Unit),batch.Forward);
             foreach(var m in waiting)m.Departure=Time.unscaledTime+rows[m.Placement.Unit]*SoftDelay;
             BeginDepartureSpeed(batch,waiting,rows);
@@ -141,14 +130,13 @@ namespace Si_Formation
             {
                 var m=SoftMotions[(motionCursor++&int.MaxValue)%SoftMotions.Count];var p=m.Placement;var u=p.Unit;
                 if(!SoftGroups.Contains(m.Batch.Soft)||!BatchCurrent(m.Batch)||!Available(u)||u.PlayerControlled||u.IsFlyingType||u.Team!=m.Batch.Team||u.AIGroup!=m.Group||
-                    (u.OrderAgent.Orders.Count>0&&(m.Approaching?
-                        u.OrderAgent.Orders.Count!=1||u.OrderAgent.Orders[0].Id!=p.OrderId:
+                    (u.OrderAgent.Orders.Count>0&&(
                         !m.Previous.SequenceEqual(u.OrderAgent.Orders.Select(o=>o.Id)))))
                 {SoftMotions.Remove(m);m.Batch.Reserved.Remove(p);m.Batch.Soft.Slots.Remove(u);continue;}
-                if(Time.unscaledTime<m.Departure)continue;
-                if(m.Approaching&&(DistanceSq(u.transform.position,p.Approach)>9||Math.Abs(u.transform.position.y-p.Approach.y)>3))continue;
+                if(m.Initial||Time.unscaledTime<m.Departure)continue;
+
                 work++;
-                var target=new OrderTarget(m.Approaching?p.Point:p.Approach);
+                var target=new OrderTarget(p.Point);
                 var parameters=OrderIssueParams.Commanded(m.Batch.Speed);
                 bool issued;
                 generatedDepth++;
@@ -160,7 +148,7 @@ namespace Si_Formation
                 finally{generatedDepth--;}
                 if(!issued){RetrySoftMotion(m);continue;}
                 p.OrderId=u.OrderAgent.Orders.Count>0?u.OrderAgent.Orders[0].Id:0;
-                if(!m.Approaching){m.Approaching=true;DepartedSoftMotion(m);continue;}
+                DepartedSoftMotion(m);
                 SoftMotions.Remove(m);
                 if(m.Batch.Attack!=null)
                 {

@@ -109,13 +109,13 @@ namespace Si_Formation
             var candidates=selected.Where(u=>LockEligible(u,p)).ToArray();
             if(candidates.Length<3)
             {
-                Reply(p,"Lock denied: select at least three AI-controlled movable ground units. Infantry, vehicles and alien ground units are supported; flying and player-controlled units are excluded.");
+                MoveReply(p,"Lock denied: select at least three AI-controlled movable ground units. Infantry, vehicles and alien ground units are supported; flying and player-controlled units are excluded.");
                 return false;
             }
             int owned=Locks.Where(g=>g.Owner==p).Sum(g=>g.Members.Count);
             if(owned+candidates.Length>CommanderOrderLimit)
             {
-                Reply(p,"Lock denied: commander formation capacity "+CommanderOrderLimit+" would be exceeded.");
+                MoveReply(p,"Lock denied: commander formation capacity "+CommanderOrderLimit+" would be exceeded.");
                 return false;
             }
             var group=new LockedGroup {Owner=p,Team=p.Team,NextTick=Time.unscaledTime};
@@ -138,7 +138,7 @@ namespace Si_Formation
             }
             RecalculateBaseline(group);Locks.Add(group);StartLockedMove(group,destination,speed);
             var handled=new HashSet<Unit>(group.Members.Select(m=>m.Unit));
-            Reply(p,"Formation snapshot applied to this move only: "+handled.Count+" units. The next move uses normal formation handling.");
+            MoveReply(p,"Formation snapshot applied to this move only: "+handled.Count+" units. The next move uses normal formation handling.");
             if(handled.Count==0)return false;
             // Never mutate the RPC's shared selected-object scratch list.
             objects=objects.Where(obj=>!(obj is Unit u)||!handled.Contains(u)).ToList();
@@ -172,8 +172,8 @@ namespace Si_Formation
             int failed=0;
             foreach(var m in g.Members.ToArray())if(!m.HasDestination&&Time.unscaledTime>=m.DepartAt){ReleaseLockedUnit(m.Unit);failed++;}
             RefreshSpeedCaps(g);
-            if(failed>0)Reply(g.Owner,failed+" units released: no valid formation destination; original request remains available to native movement.");
-            Reply(g.Owner,$"Locked move: centre-based pacing, baseline {g.Baseline:0.0} m/s; "+(SpeedLockDelay>0?"slowest-first departures.":LockDelay>0?"positional departures.":"simultaneous departure."));
+            if(failed>0)MoveReply(g.Owner,failed+" units released: no valid formation destination; original request remains available to native movement.");
+            MoveReply(g.Owner,$"Locked move: centre-based pacing, baseline {g.Baseline:0.0} m/s; "+(SpeedLockDelay>0?"slowest-first departures.":LockDelay>0?"positional departures.":"simultaneous departure."));
         }
         private static void TickLocks()
         {

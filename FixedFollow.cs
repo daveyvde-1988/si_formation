@@ -15,9 +15,9 @@ namespace Si_Formation
             internal int Slot=-1,Attempts;
             internal bool Active;
             internal float NextAttempt,Radius;
-            internal Vector3 Destination,Approach;
+            internal Vector3 Destination;
             internal float DepartAt;
-            internal int Phase; // 0 waiting, 1 approaching, 2 final order sent
+            internal int Phase; // 0 waiting, 2 final order sent
             internal readonly HashSet<int> Rejected=new HashSet<int>();
         }
         private sealed class FollowFrame
@@ -154,7 +154,7 @@ namespace Si_Formation
             {
                 if(!Valid(p.Unit))return false;
                 var s=Followers[p.Unit];
-                s.Approach=p.Approach;s.Phase=0;
+                s.Phase=0;
                 if(!frame.Rows.ContainsKey(p.Unit))frame.Rows[p.Unit]=frame.Rows.Count==0?0:Math.Min(4,frame.Rows.Values.Max()+1);
                 s.DepartAt=frame.DepartureStart+frame.Rows[p.Unit]*frame.DepartureDelay;
                 s.Slot=p.Slot;s.Destination=p.Point;s.Radius=p.Radius;s.Active=true;s.NextAttempt=Time.unscaledTime+1.5f;
@@ -189,9 +189,9 @@ namespace Si_Formation
             foreach(var s in Followers.Values.ToArray())
             {
                 if(!s.Active||s.Phase>=2||Time.unscaledTime<s.DepartAt||!Current(s))continue;
-                if(s.Phase==1&&(DistanceSq(s.Unit.transform.position,s.Approach)>9||Math.Abs(s.Unit.transform.position.y-s.Approach.y)>3))continue;
+
                 if(++work>12)break;
-                if(IssueFixedMove(s,s.Phase==0?s.Approach:s.Destination)){s.Phase++;RefreshFollowDepartureCaps();}
+                if(IssueFixedMove(s,s.Destination)){s.Phase=2;RefreshFollowDepartureCaps();}
                 else
                 {
                     s.Active=false;s.Slot=-1;s.NextAttempt=Time.unscaledTime+1.5f;

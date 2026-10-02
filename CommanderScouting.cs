@@ -21,16 +21,16 @@ namespace Si_Formation
             objects=eligible.Cast<BaseGameObject>().ToList();
             if(eligible.Count<5)
             {
-                Reply(p,"Scout denied: fewer than 5 eligible units. Locked formation units are excluded.");
+                MoveReply(p,"Scout denied: fewer than 5 eligible units. Locked formation units are excluded.");
                 NativeScoutFallback(objects,clicked,speed);objects.Clear();return true;
             }
             int excess=Math.Max(0,eligible.Count-CommanderOrderLimit);
             if(excess>0)eligible.RemoveRange(CommanderOrderLimit,excess);
             if(eligible.Count<5)
-            {Reply(p,"Scout denied: commander capacity is below 5.");NativeScoutFallback(objects,clicked,speed);objects.Clear();return true;}
+            {MoveReply(p,"Scout denied: commander capacity is below 5.");NativeScoutFallback(objects,clicked,speed);objects.Clear();return true;}
             var terrain=Game.MainTerrain;
             if(!terrain||!terrain.terrainData||!AstarPath.active)
-            {Reply(p,"Scouting started: 0 units deployed; map navigation unavailable; "+eligible.Count+" failures; "+skipped+" locked units skipped.");return true;}
+            {MoveReply(p,"Scouting started: 0 units deployed; map navigation unavailable; "+eligible.Count+" failures; "+skipped+" locked units skipped.");return true;}
             var bounds=new Bounds(terrain.transform.position+terrain.terrainData.bounds.center,terrain.terrainData.bounds.size);
             int count=eligible.Count,columns=Math.Max(1,Mathf.CeilToInt(Mathf.Sqrt(count*bounds.size.x/Math.Max(1,bounds.size.z))));
             columns=Math.Min(count,columns);int rows=Mathf.CeilToInt((float)count/columns);
@@ -67,7 +67,7 @@ namespace Si_Formation
                 }
             }
             finally{generatedDepth--;}
-            Reply(p,$"Scouting started: {dispatched} units deployed; {skipped} locked units skipped; {failures} destination/order failures; {excess} over capacity left untouched.");
+            MoveReply(p,$"Scouting started: {dispatched} units deployed; {skipped} locked units skipped; {failures} destination/order failures; {excess} over capacity left untouched.");
             return true;
         }
         private static void NativeScoutFallback(List<BaseGameObject> objects,Vector3 clicked,AgentMoveSpeed speed)

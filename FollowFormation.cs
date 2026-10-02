@@ -10,7 +10,7 @@ using Silica.AI;
 using SilicaAdminMod;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "2.7.0", "Local")]
+[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "2.8.0", "Local")]
 [assembly: MelonGame("Bohemia Interactive", "Silica")]
 [assembly: MelonOptionalDependencies("Admin Mod")]
 
@@ -149,6 +149,7 @@ namespace Si_Formation
             EnforceLimits();
             foreach(var p in Player.Players)if(p)For(p);
         }
+        private static void MoveReply(Player p,string text)=>Trace(text);
         private static void Reply(Player p,string text)
         { if(p) HelperMethods.SendChatMessageToPlayer(p,"Formations: "+text); else MelonLogger.Msg("Formations: "+text); }
         private static void SelectCommand(Player p,string args,string function)
