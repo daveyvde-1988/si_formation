@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>Si_Formation</AssemblyName>
+    <Version>2.7.0</Version>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <ServerRoot Condition="'$(ServerRoot)' == ''">$(MSBuildThisFileDirectory)..\..</ServerRoot>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="FollowFormation.cs" />
+    <Compile Include="FormationMenu.cs" />
+    <Compile Include="FormationSettings.cs" />
+    <Compile Include="TerrainProjection.cs" />
+    <Compile Include="FormationData.cs" />
+    <Compile Include="FormationOrders.cs" />
+    <Compile Include="PlacementRetries.cs" />
+    <Compile Include="SoftLocks.cs" />
+    <Compile Include="DepartureSpeed.cs" />
+    <Compile Include="CentreCoordination.cs" />
+    <Compile Include="FormationHeading.cs" />
+    <Compile Include="DepartureSettings.cs" />
+    <Compile Include="FixedFollow.cs" />
+    <Compile Include="PriorityPlacement.cs" />
+    <Compile Include="EditorMetadata.cs" />
+    <Compile Include="CommanderLocks.cs" />
+    <Compile Include="CommanderScouting.cs" />
+    <Compile Include="CommanderOptions.cs" />
+    <Compile Include="MenuIsolation.cs" />
+    <Compile Include="CoordinationPolicy.cs" />
+    <Reference Include="$(ServerRoot)\Silica_Data\Managed\*.dll" Exclude="$(ServerRoot)\Silica_Data\Managed\mscorlib.dll;$(ServerRoot)\Silica_Data\Managed\netstandard.dll;$(ServerRoot)\Silica_Data\Managed\System*.dll"><Private>false</Private></Reference>
+    <Reference Include="$(ServerRoot)\MelonLoader\net35\MelonLoader.dll"><Private>false</Private></Reference>
+    <Reference Include="$(ServerRoot)\MelonLoader\net35\0Harmony.dll"><Private>false</Private></Reference>
+    <Reference Include="$(ServerRoot)\Mods\Si_AdminMod.dll"><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>
