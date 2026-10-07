@@ -116,13 +116,18 @@ namespace Si_Formation
             if(!issuer||!issuer.IsCommander||queueOrder||isAttack||target)return true;
             var f=Selected(issuer,"commander");
             if(f==null||!FunctionActive(issuer,"commander"))return true;
-            // This cap governs formation handling, not the native game's command capacity.
-            if(objects==null||objects.Count<=2)return true;
-            if(objects.Count>CommanderOrderLimit){MoveReply(issuer,"selection exceeds commander formation capacity "+CommanderOrderLimit+"; entire order left to game.");return true;}
+            if(objects==null)return true;
             try
             {
-                var units=objects.OfType<Unit>().Distinct().ToArray();
-                if(units.Length!=objects.Count||units.Any(u=>!Available(u)||u.Team!=issuer.Team))return true;
+                // Leave human-controlled units (including player-driven vehicles) to native
+                // handling, just as snapshot locks do. Do not mutate the RPC scratch list.
+                var formationObjects=objects.Where(obj=>!(obj is Unit u&&u&&
+                    (u.PlayerControlled||u.ControlledBy||(u.Driver&&u.Driver.ControlledBy)))).ToList();
+                var units=formationObjects.OfType<Unit>().Distinct().ToArray();
+                if(units.Length<=2){ClearFormationSelection(units);return true;}
+                // This cap governs formation handling, not the native game's command capacity.
+                if(formationObjects.Count>CommanderOrderLimit){MoveReply(issuer,"selection exceeds commander formation capacity "+CommanderOrderLimit+"; entire order left to game.");return true;}
+                if(units.Length!=formationObjects.Count||units.Any(u=>!Available(u)||u.Team!=issuer.Team))return true;
                 foreach(var u in units){CancelUnit(u,true);Followers.Remove(u);Superseded.Remove(u);}
                 Vector3 centroid=Vector3.zero;foreach(var u in units)centroid+=u.transform.position;centroid/=units.Length;
 
@@ -132,7 +137,9 @@ namespace Si_Formation
                     var issued=new List<Placement>();
                     QueuePlacementRetries(issuer,"commander",f,units,issued,worldPosition,Heading(worldPosition-centroid),moveSpeed);
                     Trace("commander placement queued="+units.Length);
-                    return false;
+                    var handled=new HashSet<Unit>(units);
+                    objects=objects.Where(obj=>!(obj is Unit u)||!handled.Contains(u)).ToList();
+                    return objects.Count>0;
                 }
                 finally{generatedDepth--;}
             }
