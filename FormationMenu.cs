@@ -123,7 +123,12 @@ namespace Si_Formation
         {
             if(!Ready||!Game.GetIsServer()||!p||TeamName(p.Team)==null||(p.IsCommander?function!="commander":!new[]{"move","follow","attack"}.Contains(function)))
             {Reply(p,"formation menu unavailable for your current team/role.");return false;}
-            if(number==1){DisablePersonal(p);ChoiceMessage(p,"Default");return true;}
+            if(number==1)
+            {
+                if(p.IsCommander){ReleasePlayerControl(p);For(p).Functions.Remove("commander");For(p).PersonalEnabled=true;}
+                else DisablePersonal(p);
+                ChoiceMessage(p,"Default");return true;
+            }
             var f=MenuChoices(TeamName(p.Team),function).FirstOrDefault(v=>v.MenuOrder==number);
             if(f==null){Reply(p,"number is not in this formation list; /1 is Default.");return false;}
             ApplyCustom(p,function,f);return true;
@@ -181,7 +186,8 @@ namespace Si_Formation
             Reply(p,"personal formations "+(For(p).PersonalEnabled?"ON":"OFF")+"; effective "+(EffectivePersonal(p)?"ON":"OFF"));
             foreach(string function in p.IsCommander?new[]{"commander"}:new[]{"move","follow","attack"})
                 Reply(p,function+": "+SafeChat(SelectedName(p,function))+" (effective "+(FunctionActive(p,function)?"ON":"native")+")");
-            Reply(p,"effective FPS group maximum: "+EffectiveLimit(p)+" (including leader)"+
+            if(p.IsCommander)Reply(p,"commander formation maximum: "+CommanderOrderLimit+" eligible ground units per selection; locked travel maximum: "+LockTravelMaximum+" metres; pending "+(Options(p).Pending==1?"lock":Options(p).Pending==2?"scout":"none"));
+            else Reply(p,"effective FPS group maximum: "+EffectiveLimit(p)+" (including leader)"+
                 (!Running?"; formation limits inactive while global OFF/unavailable":""));
             if(IsAdministrator(p))Reply(p,"match-wide group limit: "+MatchLimit+"; commander order maximum: "+CommanderOrderLimit);
         }

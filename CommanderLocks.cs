@@ -74,7 +74,7 @@ namespace Si_Formation
             Locks.RemoveAt(index);
         }
         private static void ClearLocks()
-        {for(int i=Locks.Count-1;i>=0;i--)ReleaseLockAt(i);LockedSpeedCaps.Clear();LockHeadings.Clear();CommanderSettings.Clear();Menus.Clear();moderatorTravel=moderatorTolerance=moderatorFalloff=null;}
+        {for(int i=Locks.Count-1;i>=0;i--)ReleaseLockAt(i);LockedSpeedCaps.Clear();LockHeadings.Clear();CommanderSettings.Clear();Menus.Clear();moderatorTolerance=moderatorFalloff=null;}
         private static void CommanderRoundEnded(GameMode mode,Team winner)=>ClearOrders();
         private static void RecalculateBaseline(LockedGroup g)
         {
@@ -112,14 +112,12 @@ namespace Si_Formation
                 MoveReply(p,"Lock denied: select at least three AI-controlled movable ground units. Infantry, vehicles and alien ground units are supported; flying and player-controlled units are excluded.");
                 return false;
             }
-            int owned=Locks.Where(g=>g.Owner==p).Sum(g=>g.Members.Count);
-            if(owned+candidates.Length>CommanderOrderLimit)
-            {
-                MoveReply(p,"Lock denied: commander formation capacity "+CommanderOrderLimit+" would be exceeded.");
-                return false;
-            }
             var group=new LockedGroup {Owner=p,Team=p.Team,NextTick=Time.unscaledTime};
             Vector3 centre=Vector3.zero;foreach(var u in candidates)centre+=u.transform.position;centre/=candidates.Length;
+            // Limit the snapshot centre, retaining its captured offsets. Terrain projection
+            // below supplies each member's ground height at the shortened destination.
+            if(DistanceSq(destination,centre)>(float)LockTravelMaximum*LockTravelMaximum)
+                destination=centre+Heading(destination-centre)*LockTravelMaximum;
             Vector3 initialHeading=PreviousLockHeading(p,candidates);
             float previousAngle=Mathf.Atan2(initialHeading.x,initialHeading.z)*Mathf.Rad2Deg;
             Vector3 travel=DistanceSq(destination,centre)>0.01f?Heading(destination-centre):initialHeading;

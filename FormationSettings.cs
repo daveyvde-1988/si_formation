@@ -74,7 +74,7 @@ namespace Si_Formation
             foreach(string function in selection.CommanderRole?new[]{"commander"}:new[]{"move","follow","attack"})
                 if(matchFormationDefaults.TryGetValue(DefaultKey(team,function),out var definition))
                     selection.Functions[function]=definition;
-            selection.PersonalEnabled=selection.Functions.Count>0;
+            selection.PersonalEnabled=selection.CommanderRole||selection.Functions.Count>0;
         }
         internal static int CommanderOrderLimit=>commanderOrderLimit!=null&&ValidCommanderLimit(commanderOrderLimit.Value)?commanderOrderLimit.Value:75;
         private static bool ValidCommanderLimit(int value)=>value>=1&&value<=100;
@@ -89,7 +89,7 @@ namespace Si_Formation
             if(!int.TryParse(value,NumberStyles.None,CultureInfo.InvariantCulture,out int limit)||!ValidCommanderLimit(limit))
             {Reply(p,"usage: /formationsizecommander <1..100> | status");return;}
             commanderOrderLimit.Value=limit;
-            try{prefs.SaveToFile(false);Reply(p,"commander order maximum: "+limit+" (saved)");}
+            try{prefs.SaveToFile(false);FormatPreferences();Reply(p,"commander order maximum: "+limit+" (saved)");}
             catch(Exception e){MelonLogger.Error("Saving CommanderOrderLimit: "+e);Reply(p,"commander order maximum: "+limit+"; saving failed, see server log.");}
         }
         private static int serverThread,configuredLimit=BuiltInLimit;

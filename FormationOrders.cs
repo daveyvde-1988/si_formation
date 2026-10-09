@@ -54,11 +54,13 @@ namespace Si_Formation
             if(f==null)return false;
             var group=player.Group;
             bool allStopped=group.AllStopped();
-            var members=group.Units.Where(u=>u&&!u.IsDestroyed&&!u.PlayerControlled&&
+            var selection=group.Units.Where(u=>u&&!u.IsDestroyed&&!u.PlayerControlled&&
                 (allStopped||!group.IgnoresTask(u,out var reason)||reason==AIGroup.EIgnoreTaskReason.FOLLOWING_LEADER)).ToArray();
-            if(members.Length<=2){ClearFormationSelection(members);return false;}
+            var members=selection.Where(u=>Available(u)&&u.Team==player.Team&&u.CanMove).ToArray();
+            var native=selection.Except(members).ToArray();
+            if(members.Length<=2){ClearFormationSelection(selection);return false;}
             PrepareFormationSelection(player,members);
-            if(members.Length>ConfiguredPlayerLimit(player)-1||members.Length>GroupLimit||members.Any(u=>u.Team!=player.Team||!Available(u)))
+            if(selection.Length>ConfiguredPlayerLimit(player)-1||selection.Length>GroupLimit||selection.Any(u=>u.Team!=player.Team))
             {MoveReply(player,$"formation not applied: FPS limit is {ConfiguredPlayerLimit(player)-1} eligible ground units; original order retained.");return false;}
             Vector3 heading=Heading(centre-player.ControlledUnit.transform.position);
 
@@ -72,10 +74,14 @@ namespace Si_Formation
             try
             {
                 group.Task=null;
-                foreach(var u in members)
+                foreach(var u in selection)
                 {
                     group.StopIgnoringTask(u); Followers.Remove(u);Superseded.Remove(u);
-
+                }
+                if(native.Length>0)
+                {
+                    ClearFormationSelection(native);
+                    StrategyMode.PerformMoveAttack(native.Cast<BaseGameObject>().ToList(),centre,target,AgentMoveSpeed.Normal,attack,false,false);
                 }
                 var issued=new List<Placement>();
                 AttackOperation pending=null;
@@ -96,54 +102,46 @@ namespace Si_Formation
         {
             if(!Running||generatedDepth>0)return true;
             Player issuer=remote?networkSender:Player.CurrentPlayer;
+            if(!issuer||!issuer.IsCommander||objects==null)return true;
             try
             {
-                if(issuer&&issuer.IsCommander&&objects!=null)
+                if(queueOrder||isAttack||target||Options(issuer).Pending==2)
+                    return !HandleLockedOrder(issuer,ref objects,worldPosition,target,moveSpeed,isAttack,queueOrder);
+
+                // The cap applies to eligible ground units, in selection order. Aircraft,
+                // unsupported objects and excess units stay in the original native request.
+                var units=objects.OfType<Unit>().Where(u=>Available(u)&&u.Team==issuer.Team&&u.CanMove)
+                    .Distinct().Take(CommanderOrderLimit).ToArray();
+                var chosen=new HashSet<Unit>(units);
+                PrepareFormationSelection(issuer,units);
+                var native=objects.Where(obj=>!(obj is Unit u)||!chosen.Contains(u)).ToList();
+                ClearFormationSelection(native.OfType<Unit>().Where(u=>u&&u.Team==issuer.Team));
+                if(units.Length<=2)
                 {
-                    var selection=objects.OfType<Unit>().Where(u=>u&&u.Team==issuer.Team).Distinct().ToArray();
-                    // Apply before explicit or soft locks can consume a small selection.
-                    if(selection.Length<=2&&Options(issuer).Pending!=2)
-                    {
-                        if(Options(issuer).Pending==1)Options(issuer).Pending=0;
-                        ClearFormationSelection(selection);
-                        return true;
-                    }
-                    if(!queueOrder&&!isAttack&&!target&&Options(issuer).Pending!=2)PrepareFormationSelection(issuer,selection);
-                    if(HandleLockedOrder(issuer,ref objects,worldPosition,target,moveSpeed,isAttack,queueOrder))return false;
+                    if(Options(issuer).Pending==1)Options(issuer).Pending=0;
+                    ClearFormationSelection(units);return true;
                 }
+                var work=units.Cast<BaseGameObject>().ToList();
+                bool locked=HandleLockedOrder(issuer,ref work,worldPosition,target,moveSpeed,false,false);
+                if(locked){objects=native;return objects.Count>0;}
+
+                // Some explicit-lock candidates may have failed. Only the unhandled
+                // remainder is considered here; never issue a second order to the lock.
+                var f=Selected(issuer,"commander");
+                var remaining=work.OfType<Unit>().ToArray();
+                if(f==null||!FunctionActive(issuer,"commander")||remaining.Length<=2)
+                {
+                    ClearFormationSelection(remaining);
+                    objects=native.Concat(work).ToList();return objects.Count>0;
+                }
+                foreach(var u in remaining){CancelUnit(u,true);Followers.Remove(u);Superseded.Remove(u);}
+                Vector3 centroid=Vector3.zero;foreach(var u in remaining)centroid+=u.transform.position;centroid/=remaining.Length;
+                generatedDepth++;
+                try{QueuePlacementRetries(issuer,"commander",f,remaining,new List<Placement>(),worldPosition,Heading(worldPosition-centroid),moveSpeed);}
+                finally{generatedDepth--;}
+                objects=native;return objects.Count>0;
             }
             catch(Exception e){Fault(e);return false;}
-            if(!issuer||!issuer.IsCommander||queueOrder||isAttack||target)return true;
-            var f=Selected(issuer,"commander");
-            if(f==null||!FunctionActive(issuer,"commander"))return true;
-            if(objects==null)return true;
-            try
-            {
-                // Leave human-controlled units (including player-driven vehicles) to native
-                // handling, just as snapshot locks do. Do not mutate the RPC scratch list.
-                var formationObjects=objects.Where(obj=>!(obj is Unit u&&u&&
-                    (u.PlayerControlled||u.ControlledBy||(u.Driver&&u.Driver.ControlledBy)))).ToList();
-                var units=formationObjects.OfType<Unit>().Distinct().ToArray();
-                if(units.Length<=2){ClearFormationSelection(units);return true;}
-                // This cap governs formation handling, not the native game's command capacity.
-                if(formationObjects.Count>CommanderOrderLimit){MoveReply(issuer,"selection exceeds commander formation capacity "+CommanderOrderLimit+"; entire order left to game.");return true;}
-                if(units.Length!=formationObjects.Count||units.Any(u=>!Available(u)||u.Team!=issuer.Team))return true;
-                foreach(var u in units){CancelUnit(u,true);Followers.Remove(u);Superseded.Remove(u);}
-                Vector3 centroid=Vector3.zero;foreach(var u in units)centroid+=u.transform.position;centroid/=units.Length;
-
-                generatedDepth++;
-                try
-                {
-                    var issued=new List<Placement>();
-                    QueuePlacementRetries(issuer,"commander",f,units,issued,worldPosition,Heading(worldPosition-centroid),moveSpeed);
-                    Trace("commander placement queued="+units.Length);
-                    var handled=new HashSet<Unit>(units);
-                    objects=objects.Where(obj=>!(obj is Unit u)||!handled.Contains(u)).ToList();
-                    return objects.Count>0;
-                }
-                finally{generatedDepth--;}
-            }
-            catch(Exception e){MelonLoader.MelonLogger.Error("Commander formation: "+e);return false;}
         }
         private static float Radius(Unit u,FormationDefinition f,FormationSlot s)
         {

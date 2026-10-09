@@ -4,13 +4,17 @@
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <AssemblyName>Si_Formation</AssemblyName>
-    <Version>2.8.0</Version>
+    <Version>2.9.0</Version>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <ServerRoot Condition="'$(ServerRoot)' == ''">$(MSBuildThisFileDirectory)..\..</ServerRoot>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="FollowFormation.cs" />
     <Compile Include="FormationMenu.cs" />
+    <Compile Include="FormationHelp.cs" />
+    <Compile Include="PreferenceLayout.cs" />
+    <EmbeddedResource Include="Si_Formation.preferences.example.cfg" LogicalName="Si_Formation.Preferences.cfg" />
+    <EmbeddedResource Include="Defaults\silica-formations.json" LogicalName="Si_Formation.DefaultFormations.json" />
     <Compile Include="FormationSettings.cs" />
     <Compile Include="TerrainProjection.cs" />
     <Compile Include="FormationData.cs" />

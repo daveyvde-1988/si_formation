@@ -10,7 +10,7 @@ using Silica.AI;
 using SilicaAdminMod;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "2.8.0", "Local")]
+[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "2.9.0", "Local")]
 [assembly: MelonGame("Bohemia Interactive", "Silica")]
 [assembly: MelonOptionalDependencies("Admin Mod")]
 
@@ -45,9 +45,10 @@ namespace Si_Formation
                     throw new InvalidOperationException("Remove Mods/Si_FollowFormation.dll and Mods/Si_Formations.dll before loading Si_Formation.dll; both must not run together.");
                 if(AdminMethods.AdminCommands==null||PlayerMethods.PlayerCommands==null)
                     throw new InvalidOperationException("Si-AdminMod is unavailable.");
-                foreach(string command in new[]{"formation","formationsize","formationsizeglobal","formationsizecommander","disband","followformation","moveformation","commanderformation","attackformation"})
+                foreach(string command in new[]{"formation","formationsize","formationsizeglobal","formationsizecommander","disband"})
                     if(AdminMethods.FindAdminCommandFromString(command)!=null||PlayerMethods.FindPlayerCommandFromString(command)!=null)
                         throw new InvalidOperationException("Command already registered: "+command);
+                EnsureBundledFormations();
                 Catalog.Load(Path.Combine(MelonLoader.Utils.MelonEnvironment.UserDataDirectory,"Formations_cfg"),MelonLogger.Msg);
                 serverThread=System.Threading.Thread.CurrentThread.ManagedThreadId;
                 prefs=MelonPreferences.CreateCategory("Si_Formation");
@@ -57,7 +58,7 @@ namespace Si_Formation
                 debugDefault=prefs.CreateEntry("Debug",false,description:"Si_Formation bounded diagnostic logging");
                 RegisterFormationDefaults();
                 RegisterCommanderOptions();
-                commanderOrderLimit=prefs.CreateEntry("CommanderOrderLimit",75,description:"Commander formation capacity, 1..100; oversized/unsupported orders stay native; independent of FPS GroupLimit");
+                commanderOrderLimit=prefs.CreateEntry("CommanderOrderLimit",75,description:"Commander formation capacity, 1..100; excess and unsupported units stay native; independent of FPS GroupLimit");
                 if(!ValidCommanderLimit(commanderOrderLimit.Value)){MelonLogger.Warning("Invalid CommanderOrderLimit; using 75.");commanderOrderLimit.Value=75;}
                 ResetMatchSettings();
                 Patch(typeof(Event_Chat),"FireOnRequestPlayerChatEvent",prefix:nameof(MenuChat));
@@ -90,13 +91,8 @@ namespace Si_Formation
                 PlayerMethods.RegisterPlayerCommand("disband",DisbandCommand,true);
                 PlayerMethods.RegisterPlayerCommand("formationsizecommander",CommanderSizeCommand,true);
                 registered.AddRange(new[]{"formation","formationsize","formationsizeglobal","formationsizecommander","disband"});
-                foreach(string function in new[]{"move","follow","commander","attack"})
-                {
-                    string captured=function;
-                    PlayerMethods.RegisterPlayerCommand(function+"formation",(p,a)=>SelectCommand(p,a,captured),true);
-                    registered.Add(function+"formation");
-                }
                 Ready=true;
+                FormatPreferences();
                 MelonLogger.Msg("Si_Formation ready. Master "+(Enabled?"ON":"OFF")+"; team/role formation defaults configured in preferences. Cached JSON is read only at startup.");
             }
             catch(Exception e) { Fault(e); HarmonyInstance.UnpatchSelf(); }
@@ -134,7 +130,7 @@ namespace Si_Formation
             return s;
         }
         private static bool FunctionActive(Player p,string function)
-            =>p&&Running&&For(p).PersonalEnabled&&(p.IsCommander?function=="commander":function!="commander")&&Selected(p,function)!=null;
+            =>p&&Running&&(p.IsCommander||For(p).PersonalEnabled)&&(p.IsCommander?function=="commander":function!="commander")&&Selected(p,function)!=null;
         private static FormationDefinition Selected(Player p,string function)
         {
             if(!p) return null;
@@ -152,34 +148,7 @@ namespace Si_Formation
         private static void MoveReply(Player p,string text)=>Trace(text);
         private static void Reply(Player p,string text)
         { if(p) HelperMethods.SendChatMessageToPlayer(p,"Formations: "+text); else MelonLogger.Msg("Formations: "+text); }
-        private static void SelectCommand(Player p,string args,string function)
-        {
-            if(!Ready||!Game.GetIsServer()||!p) { Reply(p,"requires an initialized server and an issuing player."); return; }
-            if((function=="commander")!=p.IsCommander){Reply(p,"this formation function is not available in your current role.");return;}
-            if(!CommandArgument.TryParse(args,out string name,out bool quoted)) { Reply(p,"invalid name/quotes."); return; }
-            if(function=="commander"&&!quoted&&name.Equals("status",StringComparison.OrdinalIgnoreCase))
-            {CommanderStatus(p);return;}
-            if(function=="commander"&&!quoted&&(name.Equals("on",StringComparison.OrdinalIgnoreCase)||name.Equals("off",StringComparison.OrdinalIgnoreCase)))
-            {
-                if(name.Equals("off",StringComparison.OrdinalIgnoreCase))DisablePersonal(p);
-                else if(Selected(p,"commander")==null){Reply(p,"select a custom commander formation first.");return;}
-                else For(p).PersonalEnabled=true;
-                CommanderStatus(p); return;
-            }
-            if(name.Length==0) { Reply(p,"usage: /"+function+"formation \"name\""+(function=="commander"?" | on | off | status":"")); return; }
-            string team=TeamName(p.Team);
-            if(team==null||!Catalog.TryGet(team,function,name,out FormationDefinition f))
-            {
-                Reply(p,"missing "+function+" formation '"+name+"' for "+(team??"unsupported team")+". Available: "+
-                    string.Join(", ",Catalog.Definitions.Values.Where(v=>v.Team==team&&v.Function==function).Select(v=>v.Name))); return;
-            }
-            ApplyCustom(p,function,f);
-        }
         private static string SelectedName(Player p,string function)=>Selected(p,function)?.Name??"Default (native)";
-        private static void CommanderStatus(Player p)
-        {
-            Reply(p,"commander personal "+(For(p).PersonalEnabled?"ON":"OFF")+"; effective "+(FunctionActive(p,"commander")?"ON":"OFF")+"; selected: "+SelectedName(p,"commander")+"; capacity "+CommanderOrderLimit);
-        }
         private static void ReportMaster(Player p)
         {
             Reply(p,"Si_Formation global requested "+(Enabled?"ON":"OFF")+"; effective "+(Running?"ON":"OFF")+"; "+Catalog.Definitions.Count+" cached definitions"+
@@ -189,6 +158,7 @@ namespace Si_Formation
         {
             if(!CommandArgument.TryParse(args,out string action,out bool quoted)||quoted){Reply(p,"usage: /formation on|off|status");return;}
             if(action.Length==0){ToggleMenu(p);return;}
+            if(action.Equals("help",StringComparison.OrdinalIgnoreCase)){FormationHelp(p);return;}
             if(action.Equals("lock",StringComparison.OrdinalIgnoreCase)||action.Equals("unlock",StringComparison.OrdinalIgnoreCase))
             {LockCommand(p,action);return;}
             if(action.Equals("status",StringComparison.OrdinalIgnoreCase)){PersonalStatus(p);return;}
