@@ -10,7 +10,7 @@ using Silica.AI;
 using SilicaAdminMod;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "2.9.0", "Local")]
+[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "2.10.0", "Local")]
 [assembly: MelonGame("Bohemia Interactive", "Silica")]
 [assembly: MelonOptionalDependencies("Admin Mod")]
 
@@ -295,6 +295,7 @@ namespace Si_Formation
             if(Time.unscaledTime<nextCheck) return;
             nextCheck=Time.unscaledTime+1;
             foreach(var p in Menus.Keys.ToArray())if(!p||!Player.Players.Contains(p))Menus.Remove(p);
+            foreach(var id in PlayerPolicies.Keys.ToArray())if(!Connected(id))PlayerPolicies.Remove(id);
             if(!Running) return;
             try
             {
@@ -314,10 +315,10 @@ namespace Si_Formation
             GameEvents.OnGameEnded-=CommanderRoundEnded;GameEvents.OnGameEnded+=CommanderRoundEnded;
         }
         public override void OnSceneWasUnloaded(int buildIndex,string sceneName)
-        {Followers.Clear();Frames.Clear();Superseded.Clear();Selections.Clear();ClearOrders();Menus.Clear();networkSender=null;}
+        {Followers.Clear();Frames.Clear();Superseded.Clear();Selections.Clear();ClearOrders();Menus.Clear();PlayerPolicies.Clear();networkSender=null;}
         public override void OnDeinitializeMelon()
         {
-            ClearFollow();ClearOrders();Selections.Clear();Menus.Clear();
+            ClearFollow();ClearOrders();Selections.Clear();Menus.Clear();PlayerPolicies.Clear();
             GameEvents.OnPlayerChangedUnit-=PlayerChangedUnit;GameEvents.OnPlayerChangedTeam-=PlayerChangedTeam;
             GameEvents.OnGameStarted-=RoundStarted;
             GameEvents.OnGameEnded-=CommanderRoundEnded;

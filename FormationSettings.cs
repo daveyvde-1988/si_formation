@@ -12,10 +12,10 @@ using Silica.AI;
 
 namespace Si_Formation
 {
-    public enum ChangeResult { Success, NotReady, WrongThread, InvalidPlayer, InvalidLimit, AdminOverride, InvalidFunction }
+    public enum ChangeResult { Success, NotReady, WrongThread, InvalidPlayer, InvalidLimit, AdminOverride, InvalidFunction, InvalidPolicy, OwnerConflict, NoPolicy }
 
     /// <summary>Server main-thread API. IDs are connected players' SteamID64 values. Limits include the leader.</summary>
-    public static class FormationApi
+    public static partial class FormationApi
     {
         public static bool IsReady=>Formations.ApiReady;
         public static bool GlobalEnabled=>Formations.ApiEnabled;
@@ -127,6 +127,7 @@ namespace Si_Formation
             ulong id=PlayerId(p);
             if(AdminLimits.TryGetValue(id,out int limit))return limit;
             if(adminMatchLimit.HasValue)return adminMatchLimit.Value;
+            if(PlayerPolicies.TryGetValue(id,out var policy))return policy.Limit;
             return ApiLimits.TryGetValue(id,out limit)?limit:MatchLimit;
         }
         private static int EffectiveLimit(Player p)=>Running?ConfiguredPlayerLimit(p):
@@ -187,7 +188,7 @@ namespace Si_Formation
         private static void ResetMatchSettings()
         {
             LoadDefaults();LoadFormationDefaults();adminGlobal=false;adminMatchLimit=null;apiMatchLimit=null;
-            AdminLimits.Clear();ApiLimits.Clear();Menus.Clear();Enabled=configuredEnabled;Faulted=false;
+            AdminLimits.Clear();ApiLimits.Clear();PlayerPolicies.Clear();Menus.Clear();Enabled=configuredEnabled;Faulted=false;
         }
         private static void GlobalSizeCommand(Player p,string args)
         {
@@ -226,9 +227,9 @@ namespace Si_Formation
             {
                 if(!p||p.IsCommander||!p.ControlledUnit||p.Group==null||p.Group.Leader!=p.ControlledUnit)continue;
                 var group=p.Group;int limit=ConfiguredPlayerLimit(p);
-                foreach(var unit in group.Units.Where(u=>u&&u!=p.ControlledUnit&&!u.PlayerControlled&&!(u.Driver&&u.Driver.ControlledBy)).Reverse().ToArray())
+                foreach(var unit in group.Units.Where(u=>u&&u!=p.ControlledUnit&&!u.PlayerControlled&&!(u.Driver&&u.Driver.ControlledBy)).Reverse().OrderBy(u=>PolicyAllows(p,u)).ToArray())
                 {
-                    if(group.UnitCount<=limit)break;
+                    if(group.UnitCount<=limit&&PolicyAllows(p,unit))continue;
                     CancelPlayer(p);ResetLeader(p.ControlledUnit);group.RemoveUnit(unit);
                 }
             }
@@ -266,10 +267,10 @@ namespace Si_Formation
         private static int RecruitLimit(FPSCommanding instance,Player player)=>Running&&player?ConfiguredPlayerLimit(player):instance.GroupUnitLimit;
         private static bool GroupAdding(AIGroup __instance,Unit unit,ref bool __result)
         {
-            if(!Running||!unit||unit.PlayerControlled||!__instance.Leader||!__instance.Leader.ControlledBy)return true;
+            if(!Running||!unit||unit.PlayerControlled||(unit.Driver&&unit.Driver.ControlledBy)||!__instance.Leader||!__instance.Leader.ControlledBy)return true;
             var player=__instance.Leader.ControlledBy;
             if(player.IsCommander||player.Group!=__instance||__instance.Units.Contains(unit))return true;
-            if(__instance.UnitCount<ConfiguredPlayerLimit(player))return true;
+            if(PolicyAllows(player,unit)&&__instance.UnitCount<ConfiguredPlayerLimit(player))return true;
             __result=false;return false;
         }
         private static bool RecruitAuthorized(Player player,Target target)
@@ -278,6 +279,7 @@ namespace Si_Formation
             return player&&!player.IsCommander&&(!networkSender||networkSender==player)&&target&&target.OwnerUnit&&
                 target.OwnerUnit.Team==player.Team&&!target.OwnerUnit.PlayerControlled&&
                 !(target.OwnerUnit.Driver&&target.OwnerUnit.Driver.ControlledBy)&&
+                PolicyAllows(player,target.OwnerUnit)&&
                 (target.OwnerUnit.AIGroup==null||!target.OwnerUnit.AIGroup.PlayerControlled);
         }
     }

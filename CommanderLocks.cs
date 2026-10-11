@@ -75,7 +75,7 @@ namespace Si_Formation
         }
         private static void ClearLocks()
         {for(int i=Locks.Count-1;i>=0;i--)ReleaseLockAt(i);LockedSpeedCaps.Clear();LockHeadings.Clear();CommanderSettings.Clear();Menus.Clear();moderatorTolerance=moderatorFalloff=null;}
-        private static void CommanderRoundEnded(GameMode mode,Team winner)=>ClearOrders();
+        private static void CommanderRoundEnded(GameMode mode,Team winner){ClearOrders();PlayerPolicies.Clear();}
         private static void RecalculateBaseline(LockedGroup g)
         {
             g.Baseline=float.MaxValue;

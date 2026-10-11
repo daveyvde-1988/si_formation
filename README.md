@@ -2,6 +2,31 @@
 
 Assembly and preferences section remain `Si_Formation`; .NET Standard 2.1, dedicated-server only.
 
+## Player policy API (2.10.0)
+
+`Si_Formation.FormationApi` provides owner-scoped FPS recruitment policies for rank mods. Call on the server main thread after `IsReady`; `GlobalEnabled` reports whether enforcement is active (including master-disable and fault state). Policies apply to native FPS recruitment and `AIGroup.AddUnit`, independent of a player's custom formation selections. Commander orders keep their separate existing capacity.
+
+```csharp
+RequestPlayerPolicy(ulong steamId, string owner, int limit,
+    string[] allowedCategories, string[] allowedObjectNames, string[] deniedObjectNames);
+TryGetPlayerPolicy(ulong steamId, out string owner, out int limit,
+    out string[] allowedCategories, out string[] allowedObjectNames, out string[] deniedObjectNames);
+ClearPlayerPolicy(ulong steamId, string owner);
+ClearOwnerPolicies(string owner);
+TryGetUnitDefinitions(out string[] objectNames, out string[] unitTypes, out string[] unitWeights);
+GetNativeUnitCategories();
+```
+
+All mutating/read methods above except `GetNativeUnitCategories` return `ChangeResult`. Limits are **1..50 including the controlled leader**: limit **1** permits zero AI followers. A policy's limit takes precedence over the older unowned per-player limit API and configured defaults. Explicit admin player/match size overrides take precedence over both policy capacity and eligibility; the policy remains stored underneath. A policy request returning `AdminOverride` was stored successfully but is shadowed. A policy read returns `AdminOverride` for a shadowed policy. Existing API enum values are preserved; new values are `InvalidPolicy`, `OwnerConflict`, and `NoPolicy`.
+
+Use a stable nonempty owner such as `Si_Ranks`. A different owner cannot replace or clear a policy. Reads and requests copy all arrays, so callers cannot mutate active policies afterward. Repeating the same owner, limit and array contents is idempotent and leaves active orders intact. Missing policies return `NoPolicy`. Clear methods also work for disconnected IDs and removing all records owned by a mod. Policies are cleared on round end/start, scene unload, disconnect and mod unload; callers should inspect/reapply their policies after lifecycle changes and clear their owner during their own unload.
+
+Category rules use native `ObjectInfo.UnitType` and `UnitWeight`, for all factions: `Infantry`, `Tank:Light`, `Siege:Heavy`, or `*`. A type alone or `Type:*` accepts all weights of that type. `Type:Any` matches only definitions whose native weight is exactly the `Any` enum value. Names and categories are case-sensitive. Null categories permit all definitions; an empty array permits only explicit `allowedObjectNames`. Exact native `ObjectInfo.name` entries in `allowedObjectNames` allow exceptions; `deniedObjectNames` always win. Unknown native category/weight strings are rejected instead of guessed. Unit definitions without ObjectInfo fail closed under a policy. `TryGetUnitDefinitions` returns parallel arrays from initialized native unit definitions, without formation-editor overrides; it returns `NotReady` until `ObjectInfo.AllInitialized`. `GetNativeUnitCategories` returns available native enum combinations without needing game initialization.
+
+Changing a policy immediately releases disallowed AI followers first, then excess followers through the existing native `RemoveUnit` cleanup. Periodic enforcement handles later changes. The controlled leader, player-controlled members and player-driven units are preserved. Release cannot automatically restore previously removed members if a later promotion allows them again.
+
+Build validation: 2.10.0 compiled with zero warnings/errors. Gameplay verification is performed by the server owner: Private at limit 1, promotion/recruitment, all-faction category exceptions, demotion release, admin size precedence, reconnect/round reset and master-disable behavior.
+
 ## Commands (2.9.0)
 
 Command names are case-insensitive. **Admin** means AdminMod Generic power. `/formation help` shows general commands, the caller's current role commands, and administrative commands only to admins. Numeric menu replies and `/back` are handled only while this mod owns the menu.
