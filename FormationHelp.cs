@@ -40,7 +40,7 @@ namespace Si_Formation
                 if(input==null)throw new InvalidOperationException("Bundled default formations resource is missing.");
                 using(var output=new FileStream(destination,FileMode.CreateNew,FileAccess.Write,FileShare.None))input.CopyTo(output);
             }
-            MelonLogger.Msg("Installed bundled default formations: "+destination);
+            DebugMsg("Installed bundled default formations: "+destination);
         }
     }
 }

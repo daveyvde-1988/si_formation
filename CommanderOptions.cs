@@ -29,7 +29,7 @@ namespace Si_Formation
             {Reply(p,"usage: /Formationtraveldistance <0..10000> | status");return;}
             travelDefault.Value=metres;
             try{prefs.SaveToFile(false);FormatPreferences();Reply(p,"Locked formation maximum "+metres+" metres (saved; new moves only).");}
-            catch(Exception e){MelonLogger.Error("Saving FormationTravelDistance: "+e);Reply(p,"Locked formation maximum "+metres+" metres; saving failed, see server log.");}
+            catch(Exception e){DebugError("Saving FormationTravelDistance: "+e);Reply(p,"Locked formation maximum "+metres+" metres; saving failed, see server log.");}
         }
         private static MelonPreferences_Entry<bool> speedCapDefault;
         private static bool? speedCapOverride;

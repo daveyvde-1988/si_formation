@@ -63,7 +63,7 @@ namespace Si_Formation
                     if(number==1)continue;
                     var definition=Catalog.Definitions.Values.FirstOrDefault(f=>f.Team==team&&f.Function==function&&f.MenuOrder==number);
                     if(number<2||number>9999||definition==null)
-                    {MelonLogger.Warning("[Si_Formation] "+key+"="+number+" has no valid formation menu option; using native (1).");continue;}
+                    {DebugWarning("[Si_Formation] "+key+"="+number+" has no valid formation menu option; using native (1).");continue;}
                     matchFormationDefaults[key]=definition;
                 }
         }
@@ -90,7 +90,7 @@ namespace Si_Formation
             {Reply(p,"usage: /formationsizecommander <1..100> | status");return;}
             commanderOrderLimit.Value=limit;
             try{prefs.SaveToFile(false);FormatPreferences();Reply(p,"commander order maximum: "+limit+" (saved)");}
-            catch(Exception e){MelonLogger.Error("Saving CommanderOrderLimit: "+e);Reply(p,"commander order maximum: "+limit+"; saving failed, see server log.");}
+            catch(Exception e){DebugError("Saving CommanderOrderLimit: "+e);Reply(p,"commander order maximum: "+limit+"; saving failed, see server log.");}
         }
         private static int serverThread,configuredLimit=BuiltInLimit;
         private static bool configuredEnabled=true,adminGlobal;
@@ -180,7 +180,7 @@ namespace Si_Formation
             debug=debugDefault?.Value??false;
             if(!ValidLimit(configuredLimit))
             {
-                MelonLogger.Warning("[Si_Formation] GroupLimit must be 1..50; using 10.");
+                DebugWarning("[Si_Formation] GroupLimit must be 1..50; using 10.");
                 configuredLimit=BuiltInLimit;
             }
         }

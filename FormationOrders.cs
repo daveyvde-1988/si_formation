@@ -33,7 +33,7 @@ namespace Si_Formation
             if(!Running||generatedDepth>0) return true;
             CancelPlayer(player,true);
             try {return !TryFps(player,position,null,false);}
-            catch(Exception e) {MelonLoader.MelonLogger.Error("FPS move formation: "+e);return true;}
+            catch(Exception e) {DebugError("FPS move formation: "+e);return true;}
         }
         private static bool FpsAttack(Player player,Target target)
         {
@@ -41,7 +41,7 @@ namespace Si_Formation
             CancelPlayer(player,true);
             if(!ValidTarget(target))return true;
             try {return !TryFps(player,target.transform.position,target,true);}
-            catch(Exception e) {MelonLoader.MelonLogger.Error("FPS attack formation: "+e);return true;}
+            catch(Exception e) {DebugError("FPS attack formation: "+e);return true;}
         }
         private static bool ValidTarget(Target t)=>t&&t.Owner&&!t.IsDestroyed&&t.NetworkComponent&&t.NetworkComponent.IsValid;
         private static bool TryFps(Player player,Vector3 centre,Target target,bool attack)
@@ -95,7 +95,7 @@ namespace Si_Formation
                 Trace((attack?"attack staging":"FPS move")+" group="+members.Length);
                 return true;
             }
-            catch(Exception e){MelonLoader.MelonLogger.Error("FPS formation application: "+e);return true;}
+            catch(Exception e){DebugError("FPS formation application: "+e);return true;}
             finally {generatedDepth--;}
         }
         private static bool CommanderMove(ref List<BaseGameObject> objects,Vector3 worldPosition,Target target,AgentMoveSpeed moveSpeed,bool isAttack,bool remote,bool queueOrder)
@@ -168,7 +168,7 @@ namespace Si_Formation
                     p.OrderId=p.Unit.OrderAgent.Orders.Count>0?p.Unit.OrderAgent.Orders[0].Id:0;
                     issued.Add(p);
                 }
-                catch(Exception e){MelonLoader.MelonLogger.Warning("Formation unit order skipped: "+e.Message);}
+                catch(Exception e){DebugWarning("Formation unit order skipped: "+e.Message);}
             }
             return issued;
         }

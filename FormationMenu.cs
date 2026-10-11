@@ -173,7 +173,7 @@ namespace Si_Formation
                     if(unit.PlayerControlled||unit.ControlledBy||(unit.Driver&&unit.Driver.ControlledBy)){protectedUnits++;continue;}
                     CancelUnit(unit);Followers.Remove(unit);Superseded.Remove(unit);
                     try{group.RemoveUnit(unit);if(group.Units.Contains(unit))failed++;else removed++;}
-                    catch(Exception e){failed++;MelonLoader.MelonLogger.Warning("Disband removal failed: "+e.Message);}
+                    catch(Exception e){failed++;DebugWarning("Disband removal failed: "+e.Message);}
                 }
             }
             finally{generatedDepth--;}

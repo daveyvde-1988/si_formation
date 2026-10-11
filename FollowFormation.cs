@@ -37,6 +37,11 @@ namespace Si_Formation
         private readonly List<string> registered=new List<string>();
         private static bool Running=>Ready&&Enabled&&!Faulted&&Game.GetIsServer();
 
+        // All mod-owned server log output follows the runtime Debug setting.
+        private static void DebugMsg(string text) { if (debug) MelonLogger.Msg(text); }
+        private static void DebugWarning(string text) { if (debug) MelonLogger.Warning(text); }
+        private static void DebugError(string text) { if (debug) MelonLogger.Error(text); }
+
         public override void OnLateInitializeMelon()
         {
             try
@@ -48,18 +53,20 @@ namespace Si_Formation
                 foreach(string command in new[]{"formation","formationsize","formationsizeglobal","formationsizecommander","disband"})
                     if(AdminMethods.FindAdminCommandFromString(command)!=null||PlayerMethods.FindPlayerCommandFromString(command)!=null)
                         throw new InvalidOperationException("Command already registered: "+command);
-                EnsureBundledFormations();
-                Catalog.Load(Path.Combine(MelonLoader.Utils.MelonEnvironment.UserDataDirectory,"Formations_cfg"),MelonLogger.Msg);
                 serverThread=System.Threading.Thread.CurrentThread.ManagedThreadId;
+                InstallPreferenceLayout();
                 prefs=MelonPreferences.CreateCategory("Si_Formation");
                 prefs.SetFilePath(Path.Combine(MelonLoader.Utils.MelonEnvironment.UserDataDirectory,"Formations_cfg","si_formation.cfg"));
                 enabledDefault=prefs.CreateEntry("Enabled",true,description:"Default master state restored each match; /formation on|off is match-only");
                 groupLimitDefault=prefs.CreateEntry("GroupLimit",BuiltInLimit,description:"Default FPS group maximum including leader, 1..50; /formationsize overrides are match-only");
                 debugDefault=prefs.CreateEntry("Debug",false,description:"Si_Formation bounded diagnostic logging");
+                debug=debugDefault.Value;
+                EnsureBundledFormations();
+                Catalog.Load(Path.Combine(MelonLoader.Utils.MelonEnvironment.UserDataDirectory,"Formations_cfg"),DebugMsg);
                 RegisterFormationDefaults();
                 RegisterCommanderOptions();
                 commanderOrderLimit=prefs.CreateEntry("CommanderOrderLimit",75,description:"Commander formation capacity, 1..100; excess and unsupported units stay native; independent of FPS GroupLimit");
-                if(!ValidCommanderLimit(commanderOrderLimit.Value)){MelonLogger.Warning("Invalid CommanderOrderLimit; using 75.");commanderOrderLimit.Value=75;}
+                if(!ValidCommanderLimit(commanderOrderLimit.Value)){DebugWarning("Invalid CommanderOrderLimit; using 75.");commanderOrderLimit.Value=75;}
                 ResetMatchSettings();
                 Patch(typeof(Event_Chat),"FireOnRequestPlayerChatEvent",prefix:nameof(MenuChat));
                 var hostPrefix=new HarmonyMethod(typeof(Formations),nameof(HostMenuChat)) {priority=HarmonyLib.Priority.First};
@@ -93,7 +100,7 @@ namespace Si_Formation
                 registered.AddRange(new[]{"formation","formationsize","formationsizeglobal","formationsizecommander","disband"});
                 Ready=true;
                 FormatPreferences();
-                MelonLogger.Msg("Si_Formation ready. Master "+(Enabled?"ON":"OFF")+"; team/role formation defaults configured in preferences. Cached JSON is read only at startup.");
+                DebugMsg("Si_Formation ready. Master "+(Enabled?"ON":"OFF")+"; team/role formation defaults configured in preferences. Cached JSON is read only at startup.");
             }
             catch(Exception e) { Fault(e); HarmonyInstance.UnpatchSelf(); }
         }
@@ -147,7 +154,7 @@ namespace Si_Formation
         }
         private static void MoveReply(Player p,string text)=>Trace(text);
         private static void Reply(Player p,string text)
-        { if(p) HelperMethods.SendChatMessageToPlayer(p,"Formations: "+text); else MelonLogger.Msg("Formations: "+text); }
+        { if(p) HelperMethods.SendChatMessageToPlayer(p,"Formations: "+text); else DebugMsg("Formations: "+text); }
         private static string SelectedName(Player p,string function)=>Selected(p,function)?.Name??"Default (native)";
         private static void ReportMaster(Player p)
         {
@@ -276,11 +283,11 @@ namespace Si_Formation
         private static Vector3 Flat(Vector3 v) {v.y=0;return v;}
         private static Vector3 Heading(Vector3 v)=>Flat(v).sqrMagnitude>0.01f?Flat(v).normalized:Vector3.forward;
         private static float DistanceSq(Vector3 a,Vector3 b)=>Flat(a-b).sqrMagnitude;
-        private static void Trace(string text) {if(debug&&traceBudget-->0)MelonLogger.Msg("[Formations] "+text);}
+        private static void Trace(string text) {if(debug&&traceBudget-->0)DebugMsg("[Formations] "+text);}
         private static void Fault(Exception e)
         {
             Faulted=true;Enabled=false;ClearFollow();ClearOrders();
-            MelonLogger.Error("Si_Formation disabled after error: "+e);
+            DebugError("Si_Formation disabled after error: "+e);
         }
         public override void OnUpdate()
         {

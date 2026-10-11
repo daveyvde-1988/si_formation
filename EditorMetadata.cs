@@ -47,14 +47,14 @@ namespace Si_Formation
                     if(size.x<=0||size.z<=0||float.IsNaN(size.x)||float.IsNaN(size.z)||float.IsInfinity(size.x)||float.IsInfinity(size.z))continue;
                     units[entry.Key]=new {width=size.x,length=size.z,category=EditorCategories.For(info)};
                 }
-                if(units.Count==0){MelonLoader.MelonLogger.Warning("No initialized physical footprints available for editor export.");return;}
+                if(units.Count==0){DebugWarning("No initialized physical footprints available for editor export.");return;}
                 string directory=Path.Combine(MelonLoader.Utils.MelonEnvironment.UserDataDirectory,"Formations_cfg","metadata");
                 Directory.CreateDirectory(directory);
                 string file=Path.Combine(directory,"footprints.json");
                 File.WriteAllText(file,JsonConvert.SerializeObject(new {format="silica-unit-footprints",version=1,source="ObjectInfo.PhysicalBounds (local prefab bounds, metres)",units},Formatting.Indented));
-                MelonLoader.MelonLogger.Msg("Exported "+units.Count+" physical footprints for formation editor: "+file);
+                DebugMsg("Exported "+units.Count+" physical footprints for formation editor: "+file);
             }
-            catch(Exception e){MelonLoader.MelonLogger.Warning("Editor footprint export: "+e.Message);}
+            catch(Exception e){DebugWarning("Editor footprint export: "+e.Message);}
         }
     }
 }
