@@ -2,6 +2,33 @@
 
 Assembly and preferences section remain `Si_Formation`; .NET Standard 2.1, dedicated-server only.
 
+## Growing production rally shapes (2.12.0)
+
+Admin Generic power: `/formation rallyfix on|off|status` (case-insensitive). On/off saves `Rallyfix` in `UserData/Formations_cfg/si_formation.cfg`, default `true`. The formation master switch also gates Rallyfix. Applies to newly produced AI ground units for AI and player commanders, independent of their selected formation. Aircraft and production tiers outside Units1..Units4 stay native.
+
+Rallyfix allocates one position at a time, without colour tiers, unit/type preferences, cluster capacities or blocked-percentage tests. Sol fills nested squares (complete at 1, 4, 9, 16, 25... positions); Centauri fills axial hexagon rings (1, 7, 19, 37...); Alien fills circular rings with enough angular separation for the spacing. Incomplete outer shapes are intentional. Blocked candidates are skipped individually. Existing unit destinations stay fixed; only newly produced units use the next position. Vacated positions are released for occupancy but the shape cursor continues outward rather than reshuffling older units.
+
+| Facility tier | Minimum centre spacing |
+| --- | --- |
+| Barracks / Units1 | 5 m |
+| Light factory / Units2 | 15 m |
+| Heavy factory / Units3 | Commander formation option 2 scale: installed Sol 30 m, Centauri 25 m, Alien 26 m (minimum 20 m; missing definition falls back to 30 m) |
+| Ultra heavy factory / Units4 | 30 m |
+
+Spacing is uniform per facility/area, increased when necessary to fit the largest physical bounds in its ground-unit production roster, including a 0.5 m radius margin. This reads measurements, not formation unit preferences. Shape follows faction regardless of the selected commander formation; ordinary formations are unchanged. Equal-spacing comparisons tolerate 5 cm of coordinate rounding.
+
+Native default rally points are captured when structures initialize, including off-ramp defaults. With no explicit AI/player rally point, the anchor starts beyond the exit and every accepted automatic spot stays at least 75 m beyond the facility's horizontal physical bounds (plus the unit clearance radius). With an explicit rally point, that point is the stable shape anchor and the 75 m exclusion does not apply. External `MoveRallyPoint` calls establish a new area for future production; already produced units retain their captured area/destination. Returning to the captured native default, or zero, resumes automatic placement.
+
+The factory's visible rally marker advances to a validated, reserved next position after each allocation. Mod-owned marker updates do not change the shape anchor. The next production claims that preview immediately, then revalidates it using its own navigation graph; rapid simultaneous production cannot claim the same preview twice. All facilities share destination and preview occupancy checks. Turning Rallyfix off restores the commander's original/default marker when the mod still owns it, clears pending work/reservations, and lets already issued movement finish. Turning it on does not rearrange old units.
+
+Timed and instant production are observed before the native shared rally destination is applied. Native forced exits are preserved; an individual destination can be queued while a vehicle is still exiting, so the game applies that destination once the forced exit finishes. Barracks and facilities without exit transforms receive ordinary individual move orders. Searches check navigation projection (at most 1 m lateral snap), order eligibility, structures, construction sites, existing ground units, reserved destinations and preview spots. Full driving routes and final vehicle orientation are handled by the game. No parked unit is deliberately reissued an order to complete a shape.
+
+Work yields across frames: up to eight continuation steps / approximately 2 ms per frame, with bounded occupancy chunks (a single engine call cannot be preempted). Each assignment and next-marker preview has at most 2048 candidates, with offsets limited to 500 m around its anchor. Failure restores the produced unit's captured native rally destination. A subsequent successful external order, player control, destruction, team changes or departure after arrival releases that unit's reservation. Global disable, round/scene cleanup and unload cancel pending work and restore owned markers.
+
+All diagnostics use the Formation mod's existing `Debug` gate and bounded trace budget. `/formation debug on|off|status` toggles logging until the next round; CFG `Debug` supplies the round default. `/formation rallyfix status` reports assigned/pending units and the active faction shape and spacing.
+
+Owner gameplay verification: Sol 4 then 9 units without earlier units moving; Centauri hexagons and Alien circles; native default/off-ramp rallies and the 75 m buffer; selected AI/player rallies and changes while units are exiting; large heavy/ultra units; blocked-position skipping; rapid/multiple factory production; manual orders/player takeover; off/on marker restoration and round reset. Compilation does not verify live movement.
+
 ## Player policy API (2.10.0)
 
 `Si_Formation.FormationApi` provides owner-scoped FPS recruitment policies for rank mods. Call on the server main thread after `IsReady`; `GlobalEnabled` reports whether enforcement is active (including master-disable and fault state). Policies apply to native FPS recruitment and `AIGroup.AddUnit`, independent of a player's custom formation selections. Commander orders keep their separate existing capacity.

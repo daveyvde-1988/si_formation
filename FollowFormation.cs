@@ -10,7 +10,7 @@ using Silica.AI;
 using SilicaAdminMod;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "2.10.0", "Local")]
+[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "2.12.0", "Local")]
 [assembly: MelonGame("Bohemia Interactive", "Silica")]
 [assembly: MelonOptionalDependencies("Admin Mod")]
 
@@ -65,6 +65,7 @@ namespace Si_Formation
                 Catalog.Load(Path.Combine(MelonLoader.Utils.MelonEnvironment.UserDataDirectory,"Formations_cfg"),DebugMsg);
                 RegisterFormationDefaults();
                 RegisterCommanderOptions();
+                InstallRallyFix();
                 commanderOrderLimit=prefs.CreateEntry("CommanderOrderLimit",75,description:"Commander formation capacity, 1..100; excess and unsupported units stay native; independent of FPS GroupLimit");
                 if(!ValidCommanderLimit(commanderOrderLimit.Value)){DebugWarning("Invalid CommanderOrderLimit; using 75.");commanderOrderLimit.Value=75;}
                 ResetMatchSettings();
@@ -166,6 +167,10 @@ namespace Si_Formation
             if(!CommandArgument.TryParse(args,out string action,out bool quoted)||quoted){Reply(p,"usage: /formation on|off|status");return;}
             if(action.Length==0){ToggleMenu(p);return;}
             if(action.Equals("help",StringComparison.OrdinalIgnoreCase)){FormationHelp(p);return;}
+            if(action.Split(new[]{' ','\t'},StringSplitOptions.RemoveEmptyEntries)[0].Equals("rallyfix",StringComparison.OrdinalIgnoreCase))
+            {RallyFixCommand(p,action);return;}
+            if(action.Split(new[]{' ','\t'},StringSplitOptions.RemoveEmptyEntries)[0].Equals("debug",StringComparison.OrdinalIgnoreCase))
+            {FormationDebugCommand(p,action);return;}
             if(action.Equals("lock",StringComparison.OrdinalIgnoreCase)||action.Equals("unlock",StringComparison.OrdinalIgnoreCase))
             {LockCommand(p,action);return;}
             if(action.Equals("status",StringComparison.OrdinalIgnoreCase)){PersonalStatus(p);return;}
@@ -201,6 +206,7 @@ namespace Si_Formation
         }
         private static void OtherOrder(AIOrderProcessor __instance,bool __result)
         {
+            RallyOtherOrder(__instance,__result);
             if(generatedDepth>0||!__result||!(__instance.Owner is Unit u)) return;
             CancelUnit(u);
             Followers.Remove(u);
@@ -291,7 +297,7 @@ namespace Si_Formation
         }
         public override void OnUpdate()
         {
-            try { ExportEditorFootprints(); TickLocks(); if(Running){TickPlacementRetries();TickSoftMotions();RefreshDepartureSpeeds();TickFollowSearches();TickFollowDepartures();} } catch(Exception e) { Fault(e); }
+            try { ExportEditorFootprints(); TickLocks(); TickRally(); if(Running){TickPlacementRetries();TickSoftMotions();RefreshDepartureSpeeds();TickFollowSearches();TickFollowDepartures();} } catch(Exception e) { Fault(e); }
             if(Time.unscaledTime<nextCheck) return;
             nextCheck=Time.unscaledTime+1;
             foreach(var p in Menus.Keys.ToArray())if(!p||!Player.Players.Contains(p))Menus.Remove(p);

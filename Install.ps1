@@ -29,6 +29,9 @@ else { $configText = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'Si_Formati
 $configSection = [regex]::Match($configText,$pattern)
 if (!$configSection.Success) { throw 'Standalone preferences must contain [Si_Formation].' }
 $replacement = $configSection.Value.TrimEnd("`r","`n") + "`r`n"
+if ($replacement -notmatch '(?m)^Rallyfix\s*=') {
+    $replacement += '# Automatic production parking; /formation rallyfix on|off saves.' + "`r`nRallyfix = true`r`n"
+}
 foreach ($entry in @(@('StartDelaySoftLock','0.2'),@('StartDelayLock','0'),@('StartDelaySpeedLock','0.3'))) {
     if ($replacement -notmatch ('(?m)^'+$entry[0]+'\s*=')) {
         $replacement += '# Seconds between departure rows: 0 disables, otherwise 0.1..5.' + "`r`n" + $entry[0] + ' = ' + $entry[1] + "`r`n"

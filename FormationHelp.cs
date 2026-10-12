@@ -21,6 +21,7 @@ namespace Si_Formation
             if(p.IsCommander||IsAdministrator(p))
                 Reply(p,"Legacy compatibility only: /formationTolerance <10..100>, /FormationFallof <10..90>; neither changes current movement.");
             if(!IsAdministrator(p))return;
+            Reply(p,"/formation rallyfix on|off|status - saved automatic production parking; /formation debug on|off|status - match diagnostic logging.");
             Reply(p,"Admin: /formation on|off - global match switch; /formationsizeglobal <1..50>; /formationsize \"Player Name\" <1..50> (FPS, including leader).");
             Reply(p,"/formationsizecommander <1..100> | status - saved per-selection cap (default 75); /Formationtraveldistance <0..10000> | status - saved lock maximum metres (default 1000).");
             Reply(p,"Farther lock clicks stop the formation centre at that maximum; 0 keeps the centre in place. Soft-lock moves are not range-limited.");

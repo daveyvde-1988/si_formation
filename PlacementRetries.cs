@@ -53,7 +53,7 @@ namespace Si_Formation
                 batch.Pending.Add(new RetryUnit {Unit=unit,Group=unit.AIGroup,Orders=unit.OrderAgent.Orders.Select(o=>o.Id).ToArray()});
             if(batch.Pending.Count>0){PlacementRetries.Add(batch);PrepareInitialMove(batch);}
         }
-        private static void ClearOrders(){ClearLocks();Operations.Clear();PlacementRetries.Clear();SoftGroups.Clear();SoftMotions.Clear();DepartureSpeeds.Clear();SoftSpeedCaps.Clear();}
+        private static void ClearOrders(){ClearRally();ClearLocks();Operations.Clear();PlacementRetries.Clear();SoftGroups.Clear();SoftMotions.Clear();DepartureSpeeds.Clear();SoftSpeedCaps.Clear();}
         private static bool BatchCurrent(PlacementRetry b)=>b.Player&&Player.Players.Contains(b.Player)&&b.Player.Team==b.Team&&b.Player.IsCommander==b.Commander&&
             (b.Commander||b.Player.Group==b.Group)&&FunctionActive(b.Player,b.Function)&&Selected(b.Player,b.Function)==b.Definition&&
             (b.Attack==null||Operations.Contains(b.Attack));
