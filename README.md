@@ -1,3 +1,53 @@
+# Si_Formation
+
+Arrange FPS squads and commander armies into custom formations. Choose layouts for moving, following and attacking, keep formation slots as units travel, and coordinate group movement. Runs on the dedicated server with MelonLoader and Admin Mod; clients need no mod.
+
+## Features at a glance
+
+- Separate FPS Move, Follow and Attack layouts, plus commander formation choices.
+- Custom JSON layouts, terrain-aware placement and remembered unit slots.
+- Formation locks, movement coordination and personal commander spacing.
+- Commander scouting and optional Rallyfix production parking.
+- FPS squad limits and an owner-policy API used by **Si_Ranks** for rank-based recruitment.
+- Protects player-led FPS squads during commander handovers.
+
+## Commands
+
+Enter commands in game chat. **Admin** means Admin Mod Generic permission. Numbered choices depend on the current menu; option **1** in a formation list uses native/default movement.
+
+| Command | Who | What it does |
+| --- | --- | --- |
+| `/formation` | Everyone | Open your role's formation menu. |
+| `/formation help` / `/formation status` | Everyone | List commands or show current settings and selections. |
+| `/<number>` / `/back` | Menu users | Select the displayed option or return to the previous menu. |
+| `/close` / `/0` | Menu users | Close the formation menu. |
+| `/formation <function> <number>` | FPS | Choose a layout: function 1 = Move, 2 = Follow, 3 = Attack. |
+| `/followformation lock\|unlock\|status` | FPS squad leader | Control coordinated movement and Follow orientation; menu `/5` toggles the lock. |
+| `/disband all` | FPS squad leader | Release your AI squad members. |
+| `/formation <number>` | Commander | Choose a commander formation. |
+| `/formation lock` / `/formation unlock` | Commander | Arm a layout lock for the next move or release locks. |
+| `/formationspace <metres>` | Commander | Set personal spacing for new blueprint moves, above 0 up to 1000; `0` restores blueprint spacing. |
+| `/formationspace [status]` | Commander | Show personal spacing. |
+| `/scout` | Commander | Use the next move selection for scouting; requires at least five eligible units. |
+| `/formation on\|off` | Admin | Enable or disable custom formations for the match; alias `/formation enabled on\|off`. |
+| `/formationsize "Player Name" <1..50>` | Admin | Override one player's FPS squad cap, including the leader. |
+| `/formationsizeglobal <1..50>` | Admin | Override the match-wide FPS squad cap. |
+| `/formationsizecommander <1..100>` or `status` | Admin | Set or inspect the saved commander selection cap; default 75. |
+| `/formationtraveldistance <0..10000>` or `status` | Admin | Set or inspect the saved maximum hard-lock travel distance; alias `/formationTravel`. |
+| `/formationspeedcap on\|off` | Admin | Toggle the final-arrival speed ceiling for this match. |
+| `/startdelaysoftlock <seconds>` | Admin | Set the departure interval for custom formation batches. |
+| `/startdelayspeedlock <seconds>` | Admin | Set hard-lock departure by speed tier; takes priority over positional delay. |
+| `/startdelaylock <seconds>` | Admin | Set hard-lock positional departure delay; alias `/startdelay lock <seconds>`. |
+| `/formation rallyfix on\|off\|status` | Admin | Control or inspect saved automatic production parking. |
+| `/formation debug on\|off\|status` | Admin | Control or inspect match diagnostic logging. |
+| `/formationtolerance <10..100>` | Admin | Legacy compatibility setting; does not affect current movement. |
+| `/formationfalloff <10..90>` | Admin | Legacy compatibility setting; alias `/FormationFallof`; does not affect current movement. |
+
+Departure delays accept `0` to disable or `0.1..5` seconds. Use a decimal point for fractional values.
+
+<details>
+<summary>Detailed documentation, configuration and version history</summary>
+
 # si_formation
 
 Assembly and preferences section remain `Si_Formation`; .NET Standard 2.1, dedicated-server only.
@@ -314,3 +364,5 @@ See [how ModUI status sharing works](MODUI_STATUS.md) for the shared/personal ex
 Live checks remain user-owned: confirm a non-admin commander cannot use either setting or the old alias; confirm a Generic admin can; check the feature text and standard personal formation controls; verify shared Formation service status and ordinary chat-only/server-only use without ModUI. Compilation does not verify in-game behaviour. Built DLL is prepared separately from the installed `Mods/Si_Formation.dll`.
 
 Configuration now lives in `UserData/cfg/Formation`, including the CFG, formation catalogs and metadata. On startup, missing files are copied from the legacy `UserData/Formations_cfg` directory; existing destination files take precedence. All preference saves and footprint exports use the new directory.
+
+</details>
