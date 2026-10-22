@@ -62,7 +62,18 @@ namespace Si_Formation
             PrepareFormationSelection(player,members);
             if(selection.Length>ConfiguredPlayerLimit(player)-1||selection.Length>GroupLimit||selection.Any(u=>u.Team!=player.Team))
             {MoveReply(player,$"formation not applied: FPS limit is {ConfiguredPlayerLimit(player)-1} eligible ground units; original order retained.");return false;}
-            Vector3 heading=Heading(centre-player.ControlledUnit.transform.position);
+            Vector3 squadCentre=members.Aggregate(Vector3.zero,(sum,u)=>sum+u.transform.position)/members.Length;
+            Vector3 heading=Heading(centre-(attack?squadCentre:player.ControlledUnit.transform.position));
+            if(attack&&f.DirectionSensitive)
+            {
+                int bestColour=f.Slots.Min(FormationDefinition.Colour);
+                var preferred=f.Slots.Where(s=>FormationDefinition.Colour(s)==bestColour).ToArray();
+                Vector3 local=preferred.Aggregate(Vector3.zero,(sum,s)=>sum+new Vector3(s.X,0,s.Z))/preferred.Length;
+                // Aim the preferred part of an asymmetric layout toward the approaching
+                // squad, rather than rotating its useful slots behind the enemy.
+                if(local.sqrMagnitude>1f)
+                    heading=Quaternion.Euler(0,-Mathf.Atan2(local.x,local.z)*Mathf.Rad2Deg,0)*Heading(squadCentre-centre);
+            }
 
             // Validate attack intent before handing the selection to the staged placement job.
             if(attack)
@@ -77,6 +88,16 @@ namespace Si_Formation
                 foreach(var u in selection)
                 {
                     group.StopIgnoringTask(u); Followers.Remove(u);Superseded.Remove(u);
+                }
+                if(!attack)
+                {
+                    // MoveServer normally installs this task; clients use it for the
+                    // FPS destination diamond. Suppress only its formation-member repaths.
+                    var task=AITaskBase.CreateTask(EAITaskType.Explore,player.Team,10,centre);
+                    var marker=new FpsMoveTask {Owner=player,Task=task};
+                    marker.Units.UnionWith(members);
+                    FpsMoveTasks[group]=marker;
+                    group.Task=task;
                 }
                 if(native.Length>0)
                 {
@@ -174,6 +195,8 @@ namespace Si_Formation
         }
         private static void CancelPlayer(Player player,bool keepSoft=false)
         {
+            ClearFpsTravel(player);
+            ClearFpsMoveTask(player);
             Operations.RemoveAll(o=>o.Player==player);PlacementRetries.RemoveAll(o=>o.Player==player);
             SoftMotions.RemoveAll(m=>m.Batch.Player==player);
             DepartureSpeeds.RemoveAll(g=>g.Batch.Player==player);RefreshDepartureSpeeds();
@@ -181,6 +204,7 @@ namespace Si_Formation
         }
         private static void CancelUnit(Unit unit,bool keepSoft=false)
         {
+            RemoveFpsTravelUnit(unit);
             LockHeadings.Remove(unit);
             SoftMotions.RemoveAll(m=>m.Placement.Unit==unit);
             RemoveDepartureUnit(unit);
@@ -222,6 +246,7 @@ namespace Si_Formation
                     foreach(var p in o.Members)
                     {
                         if(!Available(p.Unit)||(o.HadTarget&&!ValidTarget(o.Target)))continue;
+                        RemoveFpsTravelUnit(p.Unit);
                         // Keep entity-target versus position-only Attack semantics; never ResolveDefault here.
                         var intent=new OrderTarget(o.OriginalPosition,o.HadTarget?o.Target:null);
                         var parameters=OrderIssueParams.Commanded(p.Unit.AIAgent.MoveSpeed);

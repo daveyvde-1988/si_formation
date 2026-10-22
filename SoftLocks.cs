@@ -62,7 +62,7 @@ namespace Si_Formation
                     g.Groups.Keys.All(u=>!Available(u)||selected.Contains(u)))
                 .OrderByDescending(g=>units.Count(u=>g.Slots.ContainsKey(u))).FirstOrDefault();
             var next=new SoftGroup {Player=player,Team=player.Team,Commander=player.IsCommander,Function=function,Definition=f,Forward=forward,
-                Mirrored=f.DirectionSensitive&&old!=null&&(old.Mirrored^Reversed(old.Forward,forward))};
+                Mirrored=function!="attack"&&f.DirectionSensitive&&old!=null&&(old.Mirrored^Reversed(old.Forward,forward))};
             foreach(var u in units)
             {
                 if(old!=null&&old.Groups.TryGetValue(u,out var oldGroup)&&u.AIGroup==oldGroup&&old.Slots.TryGetValue(u,out int slot))next.Slots[u]=slot;
@@ -148,6 +148,7 @@ namespace Si_Formation
                 finally{generatedDepth--;}
                 if(!issued){RetrySoftMotion(m);continue;}
                 p.OrderId=u.OrderAgent.Orders.Count>0?u.OrderAgent.Orders[0].Id:0;
+                RegisterFpsTravel(m.Batch,p);
                 DepartedSoftMotion(m);
                 SoftMotions.Remove(m);
                 if(m.Batch.Attack!=null)

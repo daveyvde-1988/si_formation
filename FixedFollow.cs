@@ -16,6 +16,13 @@ namespace Si_Formation
             internal bool Active;
             internal float NextAttempt,Radius;
             internal Vector3 Destination;
+            internal Vector3 Anchor,RequestedAnchor,RequestedForward;
+            internal bool Refresh,RequestedMirrored;
+            internal int RefreshAttempts;
+            internal float RefreshAt;
+            internal uint Order;
+            internal float OutsideSince=-1;
+            internal bool Recovering;
             internal float DepartAt;
             internal int Phase; // 0 waiting, 2 final order sent
             internal readonly HashSet<int> Rejected=new HashSet<int>();
@@ -31,17 +38,17 @@ namespace Si_Formation
         }
         private static readonly Dictionary<Unit,Follower> Followers=new Dictionary<Unit,Follower>();
         private static readonly Dictionary<Unit,FollowFrame> Frames=new Dictionary<Unit,FollowFrame>();
-        private static float FollowReleaseDistance(Unit leader)
+        private static float FollowRefreshDistance(Unit unit,bool facingLocked)
         {
-            if(leader.ObjectInfo)
+            if(unit.ObjectInfo)
             {
-                switch(leader.ObjectInfo.UnitType)
+                switch(unit.ObjectInfo.UnitType)
                 {
-                    case UnitType.Infantry:return 5f;
-                    case UnitType.Siege:return 20f;
+                    case UnitType.Infantry:return facingLocked?2f:5f;
+                    case UnitType.Siege:return facingLocked?15f:30f;
                 }
             }
-            return 35f;
+            return facingLocked?10f:20f;
         }
         private static bool Eligible(Unit u,out Unit leader)
         {
@@ -68,6 +75,7 @@ namespace Si_Formation
         }
         private static void Release(Follower s)
         {
+            FpsSpeedCaps.Remove(s.Unit);
             FollowDepartureCaps.Remove(s.Unit);
             if(s.Active&&Available(s.Unit)&&Eligible(s.Unit,out Unit leader)&&leader==s.Leader)
             {s.Unit.AIAgent.AgentPathfinding.PathfindingSeeker.CancelCurrentPathRequest();s.Unit.AIAgent.AgentPathfinding.CompleteMovementAndReset();}
@@ -86,32 +94,35 @@ namespace Si_Formation
                 if(definition==null)continue;
                 Unit leader=p.ControlledUnit;
                 var eligible=p.Group.Units.Where(u=>Eligible(u,out Unit l)&&l==leader).ToArray();
-                if(eligible.Length<=2){ResetLeader(leader);continue;}
+                if(eligible.Length==0){ResetLeader(leader);continue;}
                 Vector3 position=leader.transform.position;
                 if(!Frames.TryGetValue(leader,out FollowFrame frame))
-                {Frames[leader]=new FollowFrame {LastSample=position};continue;}
+                    Frames[leader]=frame=new FollowFrame {LastSample=position};
                 float moved=DistanceSq(position,frame.LastSample);
                 frame.LastSample=position;
-                float releaseDistance=FollowReleaseDistance(leader);
-                if(frame.Holding&&DistanceSq(position,frame.Anchor)>releaseDistance*releaseDistance)
+                bool quiet=moved<=0.04f;
+                Vector3 centre=eligible.Aggregate(Vector3.zero,(sum,u)=>sum+u.transform.position)/eligible.Length;
+                Vector3 travel=Flat(position-centre);
+                bool facingLocked=For(p).FollowFacingLock;
+                Vector3 nextForward=facingLocked?Heading(leader.transform.forward):
+                    travel.sqrMagnitude>1f?Heading(travel):frame.Holding?frame.Forward:Vector3.forward;
+                float distance=eligible.Min(u=>FollowRefreshDistance(u,facingLocked));
+                if(!frame.Holding||DistanceSq(position,frame.Anchor)>=distance*distance||
+                    (quiet&&DistanceSq(position,frame.Anchor)>1f))
                 {
-                    foreach(var s in Followers.Values.Where(s=>s.Leader==leader))
-                    {Release(s);s.Attempts=0;s.NextAttempt=0;s.Rejected.Clear();}
-                    frame.Holding=false;frame.Search=null;
-                    // Existing FOLLOWING_LEADER flags re-enable native Follow immediately.
-                    // Capture a new actual-position frame only after a subsequent quiet sample.
-                    continue;
-                }
-                if(!frame.Holding)
-                {
-                    if(moved>1f)continue;
-                    Vector3 nextForward=Heading(leader.transform.forward);
                     frame.Mirrored=definition.DirectionSensitive&&frame.HeadingDefinition==definition&&(frame.Mirrored^Reversed(frame.Forward,nextForward));
                     frame.HeadingDefinition=definition;
                     frame.Anchor=position;frame.Forward=nextForward;frame.Holding=true;
-                    frame.Rows.Clear();
-                    foreach(var row in SoftDepartureBatches(eligible,Heading(position-eligible.Aggregate(Vector3.zero,(sum,u)=>sum+u.transform.position)/eligible.Length)))frame.Rows[row.Key]=row.Value;
-                    frame.DepartureStart=float.PositiveInfinity;frame.DepartureDelay=SoftDelay;
+                    frame.Search?.Dispose();frame.Search=null;
+                    foreach(var s in Followers.Values.Where(s=>s.Leader==leader&&!s.Active))
+                    {s.Attempts=0;s.NextAttempt=0;}
+                    if(frame.Rows.Count==0)
+                    {
+                        foreach(var row in SoftDepartureBatches(eligible,Heading(position-centre)))frame.Rows[row.Key]=row.Value;
+                        // Accepted slots can depart while remaining slots are searched.
+                        // Moving anchors may cancel searches; never strand a departure at infinity.
+                        frame.DepartureStart=Time.unscaledTime;frame.DepartureDelay=SoftDelay;
+                    }
                 }
                 foreach(var unit in PlacementOrder(definition,eligible).OrderByDescending(u=>Followers.ContainsKey(u)&&Followers[u].Active))
                 {
@@ -121,7 +132,17 @@ namespace Si_Formation
                         Followers[unit]=s=new Follower {Unit=unit,Leader=leader,Definition=definition};
                     }
                     if(s.Definition!=definition){Release(s);s.Definition=definition;s.Slot=-1;s.Attempts=0;s.NextAttempt=0;s.Rejected.Clear();frame.Search?.Dispose();frame.Search=null;}
-                    if(s.Active)SettleFollower(s,frame);
+                    if(s.Active)
+                    {
+                        float threshold=FollowRefreshDistance(unit,facingLocked);
+                        if(DistanceSq(position,s.Anchor)>=threshold*threshold||(quiet&&DistanceSq(position,s.Anchor)>1f))
+                        {
+                            s.Anchor=position;s.RequestedAnchor=position;
+                            s.RequestedMirrored=s.Definition.DirectionSensitive&&(s.RequestedMirrored^Reversed(s.RequestedForward,nextForward));
+                            s.RequestedForward=nextForward;s.Refresh=true;s.RefreshAttempts=0;s.RefreshAt=0;
+                        }
+                        if(!s.Refresh)SettleFollower(s,frame);
+                    }
                 }
                 if(frame.Search==null)StartFollowSearch(leader,definition,frame);
             }
@@ -134,10 +155,10 @@ namespace Si_Formation
             if(s.Phase<2||s.Attempts>=3||Time.unscaledTime<s.NextAttempt)return;
             if(s.Active&&DistanceSq(s.Unit.transform.position,s.Destination)<=9&&Math.Abs(s.Unit.transform.position.y-s.Destination.y)<=3)return;
             s.Attempts++;s.NextAttempt=Time.unscaledTime+1.5f;
-            // A held slot remains fixed inside the leader's unit-type release distance.
+            // Retry the same destination without discarding the unit's assigned slot.
             if(s.Active)
             {
-                if(!IssueFixedMove(s,s.Destination)){s.Active=false;s.Slot=-1;frame.Search?.Dispose();frame.Search=null;}
+                IssueFixedMove(s,s.Destination);
                 return;
             }
         }
@@ -148,7 +169,7 @@ namespace Si_Formation
             foreach(var s in pending){s.Attempts++;s.NextAttempt=Time.unscaledTime+1.5f;}
             var reserved=Followers.Values.Where(s=>s.Leader==leader&&s.Active)
                 .Select(s=>new Placement {Unit=s.Unit,Slot=s.Slot,Point=s.Destination,Radius=s.Radius}).ToList();
-            bool Valid(Unit u)=>frame.Holding&&leader&&DistanceSq(leader.transform.position,frame.Anchor)<=FollowReleaseDistance(leader)*FollowReleaseDistance(leader)&&
+            bool Valid(Unit u)=>frame.Holding&&leader&&
                 Followers.TryGetValue(u,out var s)&&!s.Active&&s.Definition==definition&&Current(s)&&Selected(leader.ControlledBy,"follow")==definition;
             bool Issue(Placement p)
             {
@@ -158,6 +179,7 @@ namespace Si_Formation
                 if(!frame.Rows.ContainsKey(p.Unit))frame.Rows[p.Unit]=frame.Rows.Count==0?0:Math.Min(4,frame.Rows.Values.Max()+1);
                 s.DepartAt=frame.DepartureStart+frame.Rows[p.Unit]*frame.DepartureDelay;
                 s.Slot=p.Slot;s.Destination=p.Point;s.Radius=p.Radius;s.Active=true;s.NextAttempt=Time.unscaledTime+1.5f;
+                s.Anchor=frame.Anchor;s.RequestedForward=frame.Forward;s.RequestedMirrored=frame.Mirrored;s.Refresh=false;
                 return true;
             }
             frame.Search=SearchRemembered(pending.Where(s=>s.Slot>=0).ToDictionary(s=>s.Unit,s=>s.Slot),definition,pending.Select(s=>s.Unit).ToArray(),frame.Anchor,frame.Forward,reserved,Valid,Issue,frame.Mirrored).GetEnumerator();
@@ -188,7 +210,27 @@ namespace Si_Formation
             int work=0;
             foreach(var s in Followers.Values.ToArray())
             {
-                if(!s.Active||s.Phase>=2||Time.unscaledTime<s.DepartAt||!Current(s))continue;
+                if(!s.Active||!Current(s))continue;
+                if(s.Refresh&&s.RefreshAttempts>=3)s.Refresh=false;
+                if(s.Refresh)
+                {
+                    if(Time.unscaledTime<s.RefreshAt)continue;
+                    if(++work>12)break;
+                    s.RefreshAttempts++;s.RefreshAt=Time.unscaledTime+1.5f;
+                    var desired=World(s.Definition.Slots[s.Slot],s.Definition,s.RequestedAnchor,s.RequestedForward,s.RequestedMirrored);
+                    if(!TerrainProjection.TryProject(s.Unit,desired,out var point))continue;
+                    var reserved=Followers.Values.Where(o=>o!=s&&o.Leader==s.Leader&&o.Active)
+                        .Select(o=>new Placement {Unit=o.Unit,Radius=o.Radius,Point=o.Refresh?
+                            World(o.Definition.Slots[o.Slot],o.Definition,o.RequestedAnchor,o.RequestedForward,o.RequestedMirrored):o.Destination});
+                    if(!Separated(point,s.Radius,reserved,s.Unit))continue;
+                    var target=new OrderTarget(point);
+                    if(!s.Unit.OrderAgent.CanIssueOrder(OrderDefinitionRegistry.Move,in target))continue;
+                    // Keep the assigned slot on a blocked refresh; native navigation owns the route.
+                    if(s.Phase>=2&&!IssueFixedMove(s,point))continue;
+                    s.Destination=point;s.Refresh=false;s.Attempts=0;s.NextAttempt=Time.unscaledTime+1.5f;
+                    continue;
+                }
+                if(s.Phase>=2||Time.unscaledTime<s.DepartAt)continue;
 
                 if(++work>12)break;
                 if(IssueFixedMove(s,s.Destination)){s.Phase=2;RefreshFollowDepartureCaps();}
@@ -205,7 +247,13 @@ namespace Si_Formation
             var target=new OrderTarget(point);
             var parameters=OrderIssueParams.Ai(s.Unit.AIAgent.MoveSpeed,broadcastEvent:false);
             generatedDepth++;
-            try {return s.Unit.OrderAgent.IssueOrder(OrderDefinitionRegistry.Move,in target,in parameters);}
+            try
+            {
+                UnitCohesionGroup.Detach(s.Unit);
+                bool issued=s.Unit.OrderAgent.IssueOrder(OrderDefinitionRegistry.Move,in target,in parameters);
+                if(issued)s.Order=s.Unit.OrderAgent.Orders.Count>0?s.Unit.OrderAgent.Orders[0].Id:0;
+                return issued;
+            }
             finally {generatedDepth--;}
         }
     }

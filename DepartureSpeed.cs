@@ -28,8 +28,7 @@ namespace Si_Formation
             foreach(var frame in Frames.Values)
             {
                 if(!frame.Holding||frame.DepartureDelay<=0)continue;
-                var members=Followers.Values.Where(s=>s.Active&&Current(s)&&Frames.TryGetValue(s.Leader,out var owner)&&owner==frame&&
-                    DistanceSq(s.Leader.transform.position,frame.Anchor)<=FollowReleaseDistance(s.Leader)*FollowReleaseDistance(s.Leader)).ToArray();
+                var members=Followers.Values.Where(s=>s.Active&&Current(s)&&Frames.TryGetValue(s.Leader,out var owner)&&owner==frame).ToArray();
                 if(members.Length<2||members.All(s=>s.Phase>0))continue;
                 int last=members.Max(s=>frame.Rows[s.Unit]);
                 if(last==0)continue;

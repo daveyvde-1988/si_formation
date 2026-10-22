@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -19,11 +20,15 @@ namespace Si_Formation
             private readonly FormationDefinition definition;
             private readonly Vector3 centre,forward;
             private readonly bool mirrored;
+            private readonly Func<int,Vector3> pointOverride;
+            private readonly Func<Unit,int,bool> candidateAllowed;
+            internal readonly bool NearestFirst;
             private readonly Dictionary<int,Vector3> points=new Dictionary<int,Vector3>();
             private readonly Dictionary<int,int> colours=new Dictionary<int,int>();
             private readonly Dictionary<Unit,UnitFacts> units=new Dictionary<Unit,UnitFacts>();
-            internal PlacementCache(FormationDefinition f,Vector3 c,Vector3 heading,bool mirror)
-            {definition=f;centre=c;forward=heading;mirrored=mirror;}
+            internal PlacementCache(FormationDefinition f,Vector3 c,Vector3 heading,bool mirror,
+                Func<int,Vector3> pointOverride=null,Func<Unit,int,bool> candidateAllowed=null,bool nearestFirst=false)
+            {definition=f;centre=c;forward=heading;mirrored=mirror;this.pointOverride=pointOverride;this.candidateAllowed=candidateAllowed;NearestFirst=nearestFirst;}
             private UnitFacts Facts(Unit u)
             {
                 if(!units.TryGetValue(u,out var facts))units[u]=facts=new UnitFacts
@@ -33,7 +38,7 @@ namespace Si_Formation
             internal float UnitRadius(Unit u)=>Facts(u).Radius;
             internal Vector3 Point(int slot)
             {
-                if(!points.TryGetValue(slot,out var value))points[slot]=value=World(definition.Slots[slot],definition,centre,forward,mirrored);
+                if(!points.TryGetValue(slot,out var value))points[slot]=value=pointOverride!=null?pointOverride(slot):World(definition.Slots[slot],definition,centre,forward,mirrored);
                 return value;
             }
             internal int Colour(int slot)
@@ -49,6 +54,7 @@ namespace Si_Formation
             }
             internal bool Allows(Unit u,int slot)
             {
+                if(candidateAllowed!=null&&!candidateAllowed(u,slot))return false;
                 var facts=Facts(u);
                 if(!facts.Allowed.TryGetValue(slot,out bool value))facts.Allowed[slot]=value=FormationDefinition.Allows(definition.Slots[slot],facts.Id,facts.Type);
                 return value;

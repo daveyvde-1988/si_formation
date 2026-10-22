@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.IO;
@@ -10,7 +10,7 @@ using Silica.AI;
 using SilicaAdminMod;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "2.12.0", "Local")]
+[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "2.15.2", "Local")]
 [assembly: MelonGame("Bohemia Interactive", "Silica")]
 [assembly: MelonOptionalDependencies("Admin Mod")]
 
@@ -24,6 +24,7 @@ namespace Si_Formation
         {
             internal Team Team;
             internal bool PersonalEnabled,CommanderRole;
+            internal bool FollowFacingLock;
             internal readonly Dictionary<string,FormationDefinition> Functions=new Dictionary<string,FormationDefinition>();
         }
         private static readonly Dictionary<Player,Selection> Selections=new Dictionary<Player,Selection>();
@@ -50,7 +51,7 @@ namespace Si_Formation
                     throw new InvalidOperationException("Remove Mods/Si_FollowFormation.dll and Mods/Si_Formations.dll before loading Si_Formation.dll; both must not run together.");
                 if(AdminMethods.AdminCommands==null||PlayerMethods.PlayerCommands==null)
                     throw new InvalidOperationException("Si-AdminMod is unavailable.");
-                foreach(string command in new[]{"formation","formationsize","formationsizeglobal","formationsizecommander","disband"})
+                foreach(string command in new[]{"formation","followformation","formationsize","formationsizeglobal","formationsizecommander","disband"})
                     if(AdminMethods.FindAdminCommandFromString(command)!=null||PlayerMethods.FindPlayerCommandFromString(command)!=null)
                         throw new InvalidOperationException("Command already registered: "+command);
                 serverThread=System.Threading.Thread.CurrentThread.ManagedThreadId;
@@ -66,6 +67,7 @@ namespace Si_Formation
                 RegisterFormationDefaults();
                 RegisterCommanderOptions();
                 InstallRallyFix();
+                InstallCommanderHandoverFix();
                 commanderOrderLimit=prefs.CreateEntry("CommanderOrderLimit",75,description:"Commander formation capacity, 1..100; excess and unsupported units stay native; independent of FPS GroupLimit");
                 if(!ValidCommanderLimit(commanderOrderLimit.Value)){DebugWarning("Invalid CommanderOrderLimit; using 75.");commanderOrderLimit.Value=75;}
                 ResetMatchSettings();
@@ -76,6 +78,7 @@ namespace Si_Formation
                 Patch(typeof(FPSCommanding),"InviteToGroupServer",prefix:nameof(RecruitAuthorized),transpiler:nameof(InviteLimit));
                 Patch(typeof(AIGroup),"AddUnit",prefix:nameof(GroupAdding));
                 Patch(typeof(AIGroup),"EvaluateLeaderFollow",transpiler:nameof(PatchFollow));
+                Patch(typeof(AIGroup),"EvaluateMovingTask",transpiler:nameof(PatchFpsMoveTask));
                 Patch(typeof(AIOrderProcessor),"IssueOrder",prefix:nameof(BeforeOtherOrder),postfix:nameof(OtherOrder));
                 Patch(typeof(Unit),"get_MoveSpeedLimit",postfix:nameof(LockedSpeedLimit));
                 Patch(typeof(AIGroup),"IgnoreTask",postfix:nameof(FollowChanged));
@@ -94,11 +97,12 @@ namespace Si_Formation
                 GameEvents.OnGameStarted+=RoundStarted;
                 GameEvents.OnGameEnded+=CommanderRoundEnded;
                 PlayerMethods.RegisterPlayerCommand("formation",MasterCommand,true);
+                PlayerMethods.RegisterPlayerCommand("followformation",FollowOrientationCommand,true);
                 PlayerMethods.RegisterPlayerCommand("formationsize",SizeCommand,true);
                 PlayerMethods.RegisterPlayerCommand("formationsizeglobal",GlobalSizeCommand,true);
                 PlayerMethods.RegisterPlayerCommand("disband",DisbandCommand,true);
                 PlayerMethods.RegisterPlayerCommand("formationsizecommander",CommanderSizeCommand,true);
-                registered.AddRange(new[]{"formation","formationsize","formationsizeglobal","formationsizecommander","disband"});
+                registered.AddRange(new[]{"formation","followformation","formationsize","formationsizeglobal","formationsizecommander","disband"});
                 Ready=true;
                 FormatPreferences();
                 DebugMsg("Si_Formation ready. Master "+(Enabled?"ON":"OFF")+"; team/role formation defaults configured in preferences. Cached JSON is read only at startup.");
@@ -147,6 +151,7 @@ namespace Si_Formation
         }
         private static void RoundStarted(GameMode mode)
         {
+            panelEpoch=Guid.NewGuid().ToString("N");
             speedCapOverride=null;softDelayOverride=lockDelayOverride=speedLockDelayOverride=null;
             if(!Ready||!Game.GetIsServer())return;
             ClearFollow();ClearOrders();Selections.Clear();Menus.Clear();ResetMatchSettings();nextCheck=0;
@@ -165,6 +170,16 @@ namespace Si_Formation
         private static void MasterCommand(Player p,string args)
         {
             if(!CommandArgument.TryParse(args,out string action,out bool quoted)||quoted){Reply(p,"usage: /formation on|off|status");return;}
+            if(action.Equals("close",StringComparison.OrdinalIgnoreCase)||action.Equals("exit",StringComparison.OrdinalIgnoreCase))
+            {if(p)Menus.Remove(p);Reply(p,"menu closed.");return;}
+            if(action.StartsWith("enabled ",StringComparison.OrdinalIgnoreCase))action=action.Substring(8).Trim();
+            if(action.StartsWith("panel ",StringComparison.OrdinalIgnoreCase))
+            {
+                var tokens=action.Split(new[]{' '},StringSplitOptions.RemoveEmptyEntries);
+                if(tokens.Length!=4||!int.TryParse(tokens[3],out int option)){Reply(p,"Invalid panel selection.");return;}
+                if(!p){Reply(p,"Player required.");return;}
+                Reply(p,ApiPanelAction(PlayerId(p),tokens[2],option,"select",tokens[1]));return;
+            }
             if(action.Length==0){ToggleMenu(p);return;}
             if(action.Equals("help",StringComparison.OrdinalIgnoreCase)){FormationHelp(p);return;}
             if(action.Split(new[]{' ','\t'},StringSplitOptions.RemoveEmptyEntries)[0].Equals("rallyfix",StringComparison.OrdinalIgnoreCase))
@@ -223,6 +238,7 @@ namespace Si_Formation
         private static void GroupTaskChanging(AIGroup __instance)
         {
             if(generatedDepth>0) return;
+            FpsMoveTasks.Remove(__instance);
             foreach(var u in __instance.Units.ToArray()) {CancelUnit(u);Followers.Remove(u);}
         }
         // Both server methods originate from the client's MultiTap toggle. Decide from the
@@ -297,7 +313,7 @@ namespace Si_Formation
         }
         public override void OnUpdate()
         {
-            try { ExportEditorFootprints(); TickLocks(); TickRally(); if(Running){TickPlacementRetries();TickSoftMotions();RefreshDepartureSpeeds();TickFollowSearches();TickFollowDepartures();} } catch(Exception e) { Fault(e); }
+            try { ExportEditorFootprints(); TickLocks(); TickRally(); if(Running){TickPlacementRetries();TickSoftMotions();RefreshDepartureSpeeds();TickFollowSearches();TickFollowDepartures();TickFpsCoordination();} } catch(Exception e) { Fault(e); }
             if(Time.unscaledTime<nextCheck) return;
             nextCheck=Time.unscaledTime+1;
             foreach(var p in Menus.Keys.ToArray())if(!p||!Player.Players.Contains(p))Menus.Remove(p);

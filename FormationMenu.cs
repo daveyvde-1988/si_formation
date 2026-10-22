@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using SilicaAdminMod;
@@ -35,7 +35,8 @@ namespace Si_Formation
             if(!Running)Reply(p,"global formations OFF/unavailable; selections apply when enabled.");
             if(menu.Function==null)
             {
-                Reply(p,"Formation functions\n/1 Move\n/2 Follow\n/3 Attack\n/4 Disband all");return;
+                Reply(p,"Formation functions\n/1 Move\n/2 Follow\n/3 Attack\n/4 Disband all\n/5 "+
+                    (For(p).FollowFacingLock?"Unlock formations (currently locked)":"Lock formations (currently unlocked)"));Reply(p,"/back returns; /close closes; /0 closes");return;
             }
             string current=SelectedName(p,menu.Function);
             menu.Choices=MenuChoices(TeamName(p.Team),menu.Function);
@@ -43,7 +44,7 @@ namespace Si_Formation
             Reply(p,"/1 Default");
             foreach(var f in menu.Choices)Reply(p,"/"+f.MenuOrder+" "+SafeChat(f.Name));
             if(menu.Choices.Length==0)Reply(p,"no valid JSON formations for this team/order; native orders retained.");
-            Reply(p,"/back returns; /formation closes");
+            Reply(p,"/back returns; /close closes; /0 closes");
         }
         // Stable numbering shared by defaults and menus; selections never reorder the list.
         private static FormationDefinition[] MenuChoices(string team,string function)
@@ -69,6 +70,8 @@ namespace Si_Formation
             if(teamOnly&&SiAdminMod.Pref_Admin_AcceptTeamChatCommands!=null&&!SiAdminMod.Pref_Admin_AcceptTeamChatCommands.Value)return false;
             string text=(message??"").Trim();
             if(!MenuAvailable(p,false)){Menus.Remove(p);return false;}
+            bool close=text.Equals("/0",StringComparison.OrdinalIgnoreCase)||text.Equals("/close",StringComparison.OrdinalIgnoreCase)||text.Equals("/exit",StringComparison.OrdinalIgnoreCase);
+            if(close){Menus.Remove(p);Reply(p,"menu closed.");return true;}
             bool back=text.Equals("/back",StringComparison.OrdinalIgnoreCase);
             bool numeric=text.Length>1&&text[0]=='/'&&text.Skip(1).All(c=>c>='0'&&c<='9');
             if(!back&&!numeric)
@@ -90,7 +93,12 @@ namespace Si_Formation
             if(menu.Function==null)
             {
                 if(choice==4){DisbandAll(p);return true;}
-                if(choice>3){Reply(p,"choose /1, /2, /3 or /4.");return true;}
+                if(choice==5)
+                {
+                    FollowOrientationCommand(p,"/followformation "+(For(p).FollowFacingLock?"unlock":"lock"));
+                    return true;
+                }
+                if(choice>3){Reply(p,"choose /1, /2, /3, /4 or /5.");return true;}
                 menu.Function=new[]{"move","follow","attack"}[choice-1];ShowMenu(p,menu);return true;
             }
             ChooseNumber(p,menu.Function,choice);return true;

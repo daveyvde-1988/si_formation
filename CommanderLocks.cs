@@ -43,6 +43,8 @@ namespace Si_Formation
                 __result=__result<0?departureCap:Math.Min(__result,departureCap);
             if(FollowDepartureCaps.TryGetValue(__instance,out float followCap))
                 __result=__result<0?followCap:Math.Min(__result,followCap);
+            if(FpsSpeedCaps.TryGetValue(__instance,out float coordinatedCap))
+                __result=__result<0?coordinatedCap:Math.Min(__result,coordinatedCap);
         }
         private static bool LockEligible(Unit u,Player p)=>Available(u)&&!u.IsFlyingType&&
             !u.PlayerControlled&&u.CanMove&&u.Team==p.Team&&u.NormalSpeed>0.01f&&u.TopSpeed>0.01f;

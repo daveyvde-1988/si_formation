@@ -1,16 +1,19 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <AssemblyName>Si_Formation</AssemblyName>
-    <Version>2.12.0</Version>
+    <Version>2.15.2</Version>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <ServerRoot Condition="'$(ServerRoot)' == ''">$(MSBuildThisFileDirectory)..\..</ServerRoot>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="ModUI_Export.cs" />
+    <Compile Include="ModUIData.cs" />
     <Compile Include="FollowFormation.cs" />
     <Compile Include="FormationMenu.cs" />
+    <Compile Include="ClientPanelApi.cs" />
     <Compile Include="FormationHelp.cs" />
     <Compile Include="PreferenceLayout.cs" />
     <EmbeddedResource Include="Si_Formation.preferences.example.cfg" LogicalName="Si_Formation.Preferences.cfg" />
@@ -30,6 +33,9 @@
     <Compile Include="FormationHeading.cs" />
     <Compile Include="DepartureSettings.cs" />
     <Compile Include="FixedFollow.cs" />
+    <Compile Include="FpsCoordination.cs" />
+    <Compile Include="FpsMoveTask.cs" />
+    <Compile Include="CommanderHandover.cs" />
     <Compile Include="PriorityPlacement.cs" />
     <Compile Include="EditorMetadata.cs" />
     <Compile Include="CommanderLocks.cs" />

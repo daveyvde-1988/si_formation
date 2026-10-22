@@ -22,7 +22,7 @@ namespace Si_Formation
             internal bool Commander;
             internal string Function;
             internal FormationDefinition Definition;
-            internal Vector3 Centre,Forward;
+            internal Vector3 Centre,Forward,TravelForward;
             internal AgentMoveSpeed Speed;
             internal int Attempt;
             internal float NextAttempt;
@@ -46,14 +46,16 @@ namespace Si_Formation
         {
             foreach(var u in units)foreach(var old in PlacementRetries)old.Pending.RemoveAll(p=>p.Unit==u);
             var batch=new PlacementRetry {Player=player,Team=player.Team,Group=player.Group,Commander=player.IsCommander,
-                Function=function,Definition=f,Centre=centre,Forward=forward,Speed=speed,Attack=attack};
+                Function=function,Definition=f,Centre=centre,Forward=forward,Speed=speed,Attack=attack,
+                TravelForward=Heading(centre-units.Aggregate(Vector3.zero,(sum,u)=>sum+u.transform.position)/units.Length)};
             batch.Soft=RememberSelection(player,function,f,units,forward);
+            if(attack!=null)batch.Soft.Slots.Clear(); // New approach: choose nearby valid slots again.
             batch.Reserved.AddRange(issued);
             foreach(var unit in units.Where(u=>!issued.Any(p=>p.Unit==u)))
                 batch.Pending.Add(new RetryUnit {Unit=unit,Group=unit.AIGroup,Orders=unit.OrderAgent.Orders.Select(o=>o.Id).ToArray()});
             if(batch.Pending.Count>0){PlacementRetries.Add(batch);PrepareInitialMove(batch);}
         }
-        private static void ClearOrders(){ClearRally();ClearLocks();Operations.Clear();PlacementRetries.Clear();SoftGroups.Clear();SoftMotions.Clear();DepartureSpeeds.Clear();SoftSpeedCaps.Clear();}
+        private static void ClearOrders(){ClearFpsTravel();ClearFpsMoveTasks();ClearRally();ClearLocks();Operations.Clear();PlacementRetries.Clear();SoftGroups.Clear();SoftMotions.Clear();DepartureSpeeds.Clear();SoftSpeedCaps.Clear();}
         private static bool BatchCurrent(PlacementRetry b)=>b.Player&&Player.Players.Contains(b.Player)&&b.Player.Team==b.Team&&b.Player.IsCommander==b.Commander&&
             (b.Commander||b.Player.Group==b.Group)&&FunctionActive(b.Player,b.Function)&&Selected(b.Player,b.Function)==b.Definition&&
             (b.Attack==null||Operations.Contains(b.Attack));
@@ -85,7 +87,10 @@ namespace Si_Formation
                 if(batch.Search==null)
                 {
                     batch.Attempt++;
-                    if(batch.Cache==null)batch.Cache=new PlacementCache(batch.Definition,batch.Centre,batch.Forward,batch.Soft.Mirrored);
+                    if(batch.Cache==null)batch.Cache=new PlacementCache(batch.Definition,batch.Centre,batch.Forward,batch.Soft.Mirrored,
+                        candidateAllowed:batch.Attack==null?(Func<Unit,int,bool>)null:(u,index)=>
+                            Vector3.Dot(Flat(World(batch.Definition.Slots[index],batch.Definition,batch.Centre,batch.Forward,batch.Soft.Mirrored)-batch.Centre),batch.TravelForward)<=0.01f,
+                        nearestFirst:batch.Attack!=null);
                     batch.Search=SearchRemembered(batch.Soft.Slots,batch.Definition,batch.Pending.Select(p=>p.Unit).ToArray(),batch.Centre,batch.Forward,batch.Reserved,
                         u=>PendingCurrent(batch,u),p=>IssuePlacement(batch,p),batch.Soft.Mirrored,batch.Cache).GetEnumerator();
                 }
@@ -110,6 +115,20 @@ namespace Si_Formation
             foreach(var motion in SoftMotions.Where(m=>m.Batch==batch&&m.Initial).ToArray())
             {SoftMotions.Remove(motion);RemoveDepartureUnit(motion.Placement.Unit);}
             StartSoftDepartures(batch);
+            if(batch.Attack!=null&&BatchCurrent(batch))
+            {
+                foreach(var pending in batch.Pending.Where(p=>PendingCurrent(batch,p.Unit)).ToArray())
+                {
+                    var u=pending.Unit;
+                    if(!ValidTarget(batch.Attack.Target))continue;
+                    var intent=new OrderTarget(batch.Attack.Target.transform.position,batch.Attack.Target);
+                    var parameters=OrderIssueParams.Commanded(batch.Speed);
+                    generatedDepth++;
+                    try {u.OrderAgent.IssueOrder(OrderDefinitionRegistry.Attack,in intent,in parameters);}
+                    finally {generatedDepth--;}
+                    batch.Soft.Slots.Remove(u);RemoveFpsTravelUnit(u);
+                }
+            }
             if(batch.Pending.Count>0)Trace(batch.Reserved.Count+" units placed; "+batch.Pending.Count+" remain on their previous/native orders after three passes.");
         }
     }

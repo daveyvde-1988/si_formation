@@ -38,7 +38,9 @@ namespace Si_Formation
                         }
                         yield return true;
                     }
-                    candidates.Sort((a,b)=>{int c=cache.Rank(u,a.Slot).CompareTo(cache.Rank(u,b.Slot));return c!=0?c:a.Slot.CompareTo(b.Slot);});
+                    candidates.Sort((a,b)=>{int c=cache.Rank(u,a.Slot).CompareTo(cache.Rank(u,b.Slot));
+                        if(c==0&&cache.NearestFirst)c=DistanceSq(u.transform.position,a.Point).CompareTo(DistanceSq(u.transform.position,b.Point));
+                        return c!=0?c:a.Slot.CompareTo(b.Slot);});
                 }
                 // Maximum bipartite matching within a colour prevents a flexible unit from
                 // stranding a unit with only one reachable slot. Preferences order its edges.
@@ -76,7 +78,10 @@ namespace Si_Formation
             long Cost(Placement p)
             {
                 int rank=cache.Rank(p.Unit,p.Slot);
-                return rank==0?0:rank==1?basis*basis:rank==2?basis*basis+basis:basis*basis+basis+1;
+                long preference=rank==0?0:rank==1?basis*basis:rank==2?basis*basis+basis:basis*basis+basis+1;
+                // Preferences remain lexicographic; distance breaks ties across the full matching.
+                return cache.NearestFirst?preference*1000000L+
+                    (long)Math.Min(9999,Flat(p.Unit.transform.position-p.Point).magnitude*10):preference;
             }
             while(true)
             {

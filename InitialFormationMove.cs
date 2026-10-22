@@ -8,6 +8,9 @@ namespace Si_Formation
     {
         private static void PrepareInitialMove(PlacementRetry batch)
         {
+            // Attack staging must not first send the squad through the target centre.
+            // Coordinated FPS moves wait for final slots before starting together.
+            if(batch.Attack!=null||(!batch.Commander&&For(batch.Player).FollowFacingLock))return;
             if(batch.Soft.Slots.Count!=0||batch.Pending.Count==0)return;
             batch.TwoStage=true;
             var rows=SoftDepartureBatches(batch.Pending.Select(p=>p.Unit),batch.Forward);

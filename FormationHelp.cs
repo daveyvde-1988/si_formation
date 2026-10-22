@@ -17,7 +17,10 @@ namespace Si_Formation
                 Reply(p,"/scout - next move selection scouts (at least five eligible units). Aircraft and excess units use native movement on normal moves.");
             }
             else
+            {
                 Reply(p,"/formation <function> <number> - 1 Move, 2 Follow, 3 Attack; /disband all - disband your AI squad (leader only).");
+                Reply(p,"/followformation lock|unlock|status - coordinate Move, Follow and Attack staging; menu /5 toggles. Follow uses moving formation slots; player speed stays unrestricted.");
+            }
             if(p.IsCommander||IsAdministrator(p))
                 Reply(p,"Legacy compatibility only: /formationTolerance <10..100>, /FormationFallof <10..90>; neither changes current movement.");
             if(!IsAdministrator(p))return;

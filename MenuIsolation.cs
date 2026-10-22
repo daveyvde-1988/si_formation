@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
@@ -20,8 +20,11 @@ namespace Si_Formation
             menusProbed=true;
             foreach(var assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
+                var buy=assembly.GetType("Si_Buy.Buy");
+                if(buy!=null)ProbeMenu(buy,"_buyStates","Buy /buy (close with /buy close)",true);
                 var koh=assembly.GetType("Si_KingOfTheHill.KingOfTheHill");
-                if(koh!=null)ProbeMenu(koh,"_buyStates","King of the Hill /buy (close with /buy close)",true);
+                if(koh!=null&&koh.GetField("_buyStates",BindingFlags.Static|BindingFlags.NonPublic)!=null)
+                    ProbeMenu(koh,"_buyStates","King of the Hill /buy (close with /buy close)",true);
                 var balance=assembly.GetType("Si_UnitBalance.UnitBalance");
                 if(balance!=null)
                 {ProbeMenu(balance,"_menuStates","Unit Balance /b (close with /b)",false);ProbeMenu(balance,"_statsStates","Unit Balance stats (close with /exit)",false);}
