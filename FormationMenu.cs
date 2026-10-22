@@ -194,7 +194,11 @@ namespace Si_Formation
             Reply(p,"personal formations "+(For(p).PersonalEnabled?"ON":"OFF")+"; effective "+(EffectivePersonal(p)?"ON":"OFF"));
             foreach(string function in p.IsCommander?new[]{"commander"}:new[]{"move","follow","attack"})
                 Reply(p,function+": "+SafeChat(SelectedName(p,function))+" (effective "+(FunctionActive(p,function)?"ON":"native")+")");
-            if(p.IsCommander)Reply(p,"commander formation maximum: "+CommanderOrderLimit+" eligible ground units per selection; locked travel maximum: "+LockTravelMaximum+" metres; pending "+(Options(p).Pending==1?"lock":Options(p).Pending==2?"scout":"none"));
+            if(p.IsCommander)
+            {
+                Reply(p,"commander formation maximum: "+CommanderOrderLimit+" eligible ground units per selection; locked travel maximum: "+LockTravelMaximum+" metres; pending "+(Options(p).Pending==1?"lock":Options(p).Pending==2?"scout":"none"));
+                Reply(p,"commander spacing: "+CommanderSpacingText(p));
+            }
             else Reply(p,"effective FPS group maximum: "+EffectiveLimit(p)+" (including leader)"+
                 (!Running?"; formation limits inactive while global OFF/unavailable":""));
             if(IsAdministrator(p))Reply(p,"match-wide group limit: "+MatchLimit+"; commander order maximum: "+CommanderOrderLimit);

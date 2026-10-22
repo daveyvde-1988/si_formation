@@ -2,7 +2,6 @@
 using System.Globalization;
 using System.Linq;
 using ModUI;
-using Newtonsoft.Json.Linq;
 namespace Si_Formation
 {
     public sealed partial class Formations
@@ -10,7 +9,7 @@ namespace Si_Formation
         public static string ModUIData()
         {
             return ModUIExport.New()
-                .Info("Formations: "+(Running?"running":"off/unavailable")+". Choices remain available; gameplay rules are unchanged.")
+                .Info("Choose faction-specific formations for FPS squad Move, Follow and Attack orders or commander moves. Coordinate travel with formation locks, scout with selected units, and automatically park newly produced units.")
                 .Status("master","Formation service",Running?"ON":"OFF")
                 .Action("/formation","Chat menu","Open the existing team/role formation menu.")
                 .Action("/formation status","Status","Show your formation selections.")
@@ -27,7 +26,10 @@ namespace Si_Formation
         {
             var p=Connected(steamId);
             if(!p||!Ready||TeamName(p.Team)==null)return null;
-            var builder=ModUIExport.New();
+            var builder=PlayerFormationStatus(p);
+            if(p.IsCommander)
+                builder.Value("/formationspace","Commander spacing (m)","Personal spacing for new blueprint moves; 0 restores blueprint spacing.",false,For(p).CommanderSpacing.ToString("G",CultureInfo.InvariantCulture))
+                    .Presentation("value","My formations",0,1000,0.5,unit:"m",defaultValue:"0");
             foreach(string function in p.IsCommander?new[]{"commander"}:new[]{"move","follow","attack"})
             {
                 string revision=PanelRevision(p,function);
@@ -36,6 +38,19 @@ namespace Si_Formation
                     .Presentation("dropdown","My formations");
             }
             return builder.Build();
+        }
+        private static ModUIExport PlayerFormationStatus(Player p)
+        {
+            var builder=ModUIExport.New()
+                .Status("group-limit","Allowed group size",p.IsCommander
+                    ?CommanderOrderLimit.ToString(CultureInfo.InvariantCulture)+" eligible ground units per selection"
+                    :EffectiveLimit(p).ToString(CultureInfo.InvariantCulture)+" including leader","My formations");
+            foreach(string function in p.IsCommander?new[]{"commander"}:new[]{"move","follow","attack"})
+            {
+                builder.Status("formation-"+function,char.ToUpperInvariant(function[0])+function.Substring(1)+" formation",
+                    SelectedName(p,function)+(Selected(p,function)!=null&&!FunctionActive(p,function)?" (inactive; native behaviour)":""),"My formations");
+            }
+            return builder;
         }
     }
 }

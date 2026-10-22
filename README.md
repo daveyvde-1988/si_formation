@@ -1,6 +1,16 @@
-﻿# si_formation
+# si_formation
 
 Assembly and preferences section remain `Si_Formation`; .NET Standard 2.1, dedicated-server only.
+
+## Commander spacing override (2.16.0)
+
+`/formationspace <metres>` lets any commander set personal spacing for subsequent custom blueprint move orders. Decimal values greater than 0 and at most 1000 are accepted (use a decimal point). `/formationspace 0` restores each blueprint's built-in spacing; `/formationspace` or `/formationspace status` reports the setting. Help, `/formation status`, and the personal ModUI controls expose it.
+
+The value replaces the selected blueprint's `metresPerNode`: local X/Z offsets are multiplied by `requested metres / blueprint metresPerNode`. For example, an 18 m blueprint used with `/formationspace 36` doubles its offsets around the clicked centre. The blueprint shape, heading, slot preferences and remembered unit-to-slot assignments are preserved. Spacing is captured per move, so changing it affects new requests only, including their placement retries. Navigation and physical clearance can still leave slots unused when units cannot fit.
+
+The override follows the commander across blueprint selections and resets on a new round, team/role change, disconnect or restart. It is not saved to the CFG and does not change other commanders, FPS formations, native/default moves, Rallyfix, scouting, or explicit locks that capture the units' current layout.
+
+Owner live checks: select at least three eligible ground units and a custom commander formation; compare new destinations at blueprint spacing, `/formationspace 10`, and `/formationspace 20`, then restore with `0`. Reissue a move with remembered slots and switch blueprints; check a second commander, invalid values, non-commander rejection and round/team/role cleanup. Compilation does not verify live placement or navigation.
 
 ## Small FPS Follow squads (2.14.2)
 
@@ -62,7 +72,7 @@ Owner live checks: infantry, mixed ground and siege squads travelling around cor
 
 ## Growing production rally shapes (2.12.0)
 
-Admin Generic power: `/formation rallyfix on|off|status` (case-insensitive). On/off saves `Rallyfix` in `UserData/Formations_cfg/si_formation.cfg`, default `true`. The formation master switch also gates Rallyfix. Applies to newly produced AI ground units for AI and player commanders, independent of their selected formation. Aircraft and production tiers outside Units1..Units4 stay native.
+Admin Generic power: `/formation rallyfix on|off|status` (case-insensitive). On/off saves `Rallyfix` in `UserData/cfg/Formation/si_formation.cfg`, default `true`. The formation master switch also gates Rallyfix. Applies to newly produced AI ground units for AI and player commanders, independent of their selected formation. Aircraft and production tiers outside Units1..Units4 stay native.
 
 Rallyfix allocates one position at a time, without colour tiers, unit/type preferences, cluster capacities or blocked-percentage tests. Sol fills nested squares (complete at 1, 4, 9, 16, 25... positions); Centauri fills axial hexagon rings (1, 7, 19, 37...); Alien fills circular rings with enough angular separation for the spacing. Incomplete outer shapes are intentional. Blocked candidates are skipped individually. Existing unit destinations stay fixed; only newly produced units use the next position. Vacated positions are released for occupancy but the shape cursor continues outward rather than reshuffling older units.
 
@@ -124,6 +134,7 @@ Command names are case-insensitive. **Admin** means AdminMod Generic power. `/fo
 | `/<number>` | Menu user | Select the displayed function or formation. Formation option 1 is Default/vanilla. |
 | `/back` | Menu user | Go back, or close the top-level menu. |
 | `/formation <number>` | Commander | Select a commander formation by its menu number. |
+| `/formationspace <metres>` | Commander | Personal spacing for new blueprint moves, >0..1000 m; `0` restores blueprint spacing; no argument or `status` reports it. |
 | `/formation <function> <number>` | FPS player | Select by number: function 1 = Move, 2 = Follow, 3 = Attack. |
 | `/disband all` | FPS squad leader | Remove AI squad members; retain the leader and player-controlled units. Also available in the menu. |
 | `/formation lock` | Commander | Arm one move using the current layout of at least 3 eligible AI ground units. Chat: `formation lock armed for one move; maximum <value> metres`. |
@@ -140,8 +151,8 @@ Command names are case-insensitive. **Admin** means AdminMod Generic power. `/fo
 | `/startdelayspeedlock <seconds>` | Admin | Interval between explicit-lock speed tiers, slowest first; match-only. Default 0.3 seconds. |
 | `/startdelaylock <seconds>` | Admin | Interval between explicit-lock positional rows; match-only. Default 0. Requires speed-tier delay to be disabled. |
 | `/startdelay lock <seconds>` | Admin | Alias for `/startdelaylock`. |
-| `/formationTolerance <10..100>` | Commander or admin | Legacy compatibility setting; currently does not affect movement. |
-| `/FormationFallof <10..90>` | Commander or admin | Legacy compatibility setting; currently does not affect movement. Spelling retains the original single final `f`. |
+| `/formationtolerance <10..100>` | Admin | Legacy compatibility setting; currently does not affect movement. |
+| `/formationfalloff <10..90>` | Admin | Legacy compatibility setting; currently does not affect movement. `/FormationFallof` retains the original spelling as an admin-only alias. |
 
 All three departure delays accept **0** to disable or **0.1..5** seconds. To experiment with positional lock rows, use `/startdelayspeedlock 0` before `/startdelaylock 0.3`. A positive speed-tier delay takes priority over positional rows.
 
@@ -153,11 +164,11 @@ Ordinary commander moves split the selection: up to `CommanderOrderLimit` eligib
 
 `FormationTravelDistance` is now an active **maximum for explicit locks only**, measured horizontally from the selected eligible ground units' starting centre. A farther click is shortened along that direction to the configured distance; captured offsets remain relative to that shortened centre. Individual units' path lengths and final positions can differ because of offsets, terrain projection and obstacle avoidance. A value of 0 keeps the snapshot centre at its starting point; it does not mean unlimited. Aircraft and excess units still use the original clicked destination. Soft-lock moves are not range-limited. Changing the setting affects new locked moves, not snapshots already travelling.
 
-Preferences live in `UserData/Formations_cfg/si_formation.cfg`, grouped by General, Capacity, Starting formations, Soft-lock departures, Explicit lock and Legacy compatibility. Your existing values are preserved, including commander capacity 75 and lock range 1000. The mod captures the CFG layout before loading preferences and merges saved values into that layout inside the MelonLoader file-write path. Headings, comment lines, grouping and unknown setting values survive ordinary and loader-wide saves; new keys are appended. If no CFG exists, the embedded example supplies the layout. This replaces the previous after-save formatting callback. Edit the layout while the server is stopped, then restart to capture it; edits made while running are not adopted as a new layout. Other preference files retain their normal serialization. The example CFG uses the same layout; its built-in FPS limit is 10 and its formation defaults are vanilla, while your local choices remain unchanged.
+Preferences live in `UserData/cfg/Formation/si_formation.cfg`, grouped by General, Capacity, Starting formations, Soft-lock departures, Explicit lock and Legacy compatibility. Your existing values are preserved, including commander capacity 75 and lock range 1000. The mod captures the CFG layout before loading preferences and merges saved values into that layout inside the MelonLoader file-write path. Headings, comment lines, grouping and unknown setting values survive ordinary and loader-wide saves; new keys are appended. If no CFG exists, the embedded example supplies the layout. This replaces the previous after-save formatting callback. Edit the layout while the server is stopped, then restart to capture it; edits made while running are not adopted as a new layout. Other preference files retain their normal serialization. The example CFG uses the same layout; its built-in FPS limit is 10 and its formation defaults are vanilla, while your local choices remain unchanged.
 
 ## Bundled formation JSON
 
-`Defaults/silica-formations.json` is a source-controlled copy of this installation's `UserData/Formations_cfg/silica-formations.json`. Building embeds it in `Si_Formation.dll`, without depending on the original server path. On startup, an installation with no JSON files in `UserData/Formations_cfg` receives this bundled catalog as `silica-formations.json`. Any existing JSON catalog is left untouched, avoiding duplicate definitions and preserving custom formations. Update the repository copy before building to change future bundled defaults. Catalog loading remains startup-only.
+`Defaults/silica-formations.json` is a source-controlled copy of this installation's `UserData/cfg/Formation/silica-formations.json`. Building embeds it in `Si_Formation.dll`, without depending on the original server path. On startup, an installation with no JSON files in `UserData/cfg/Formation` receives this bundled catalog as `silica-formations.json`. Any existing JSON catalog is left untouched, avoiding duplicate definitions and preserving custom formations. Update the repository copy before building to change future bundled defaults. Catalog loading remains startup-only.
 
 ## Commander lock and scouting details
 
@@ -166,7 +177,7 @@ Preferences live in `UserData/Formations_cfg/si_formation.cfg`, grouped by Gener
 - `/scout`: replaces pending lock with a single scouting action. The next ordinary move selection supplies scouts, ignoring the destination. Locked members are excluded even on denial. At least five eligible units are required; denial forwards the original move only to eligible unlocked units. Valid scouting uses terrain sectors, nearest-unit assignment, at most 13 navigation candidates within 300 m per scout, separation, and connected walkable navigation nodes. Ground units and native AIAirVehicleAgent flight navigation are supported. Units with restricted traversal tags are conservatively unsupported because a graph-area connectivity check alone cannot validate tag-restricted routes. No patrol/correction work remains after scout dispatch; failures and cap exclusions are reported.
 - `/formationTolerance` and `/FormationFallof` retain legacy personal commander settings; admins outside the commander role can change defaults for new commander sessions this match. These two settings do not affect current movement. `/settings` is removed; formation numbering is unchanged.
 
-Preferences in `[Si_Formation]` inside `UserData/Formations_cfg/si_formation.cfg`: `FormationTravelDistance = 1000`, `FormationPositionTolerance = 25`, `FormationFalloffSlowdown = 25`. Out-of-range values use built-in defaults. The existing `CommanderOrderLimit` is **75**, configurable 1..100, not the FPS `GroupLimit` maximum of 50. Formation membership is capped per move selection; scout dispatch uses the same numerical cap.
+Preferences in `[Si_Formation]` inside `UserData/cfg/Formation/si_formation.cfg`: `FormationTravelDistance = 1000`, `FormationPositionTolerance = 25`, `FormationFalloffSlowdown = 25`. Out-of-range values use built-in defaults. The existing `CommanderOrderLimit` is **75**, configurable 1..100, not the FPS `GroupLimit` maximum of 50. Formation membership is capped per move selection; scout dispatch uses the same numerical cap.
 
 Locked groups use ordinary individual pathfinding within the configured maximum centre travel distance. Each eligible unit receives one move order to its captured offset at the destination; the snapshot is oriented to travel, with lateral mirroring on reversals as described below. There are no intermediate waypoints, continuous correction orders, shared acceleration, recovery slowdown or 110% boosts. Centre-based speed control is standard for hard locks, as described below. Native obstacle avoidance is retained. Snapshot locks and scouting exclusions still work as before.
 
@@ -204,7 +215,7 @@ StartDelaySpeedLock = 0.3
 
 Departure commands require AdminMod Generic power: `/startdelaysoftlock 0.2`, `/startdelayspeedlock 0.3`, `/startdelay lock 0.3`, and the alias `/startdelaylock 0.3`. These change new departures for the current match without saving; the next round uses the configuration values. There is no soft-lock menu or enable switch.
 
-`Install.ps1` backs up the deployed DLL and preferences, migrates only `[Si_Formation]` from `UserData/MelonPreferences.cfg` into `UserData/Formations_cfg/si_formation.cfg`, preserves existing values, and verifies the copied DLL. An existing standalone file takes precedence. Other mods' categories are preserved. Restart the server after installation; no other mods need changes.
+`Install.ps1` backs up the deployed DLL and preferences, migrates only `[Si_Formation]` from `UserData/MelonPreferences.cfg` into `UserData/cfg/Formation/si_formation.cfg`, preserves existing values, and verifies the copied DLL. An existing standalone file takes precedence. Other mods' categories are preserved. Restart the server after installation; no other mods need changes.
 
 Live verification is user-owned: repeated moves and added/lost members; one-member replacement while others wait; infantry/alien ground locks; partial selections of 1, 2 and 3+ units; a second move after one-shot lock; complete-group cache reuse; at most five soft departure batches; default/native commands; blocked final slots; both departure settings and zero; FPS Follow/attack restoration; existing explicit-lock speed-cap on/off. Compilation does not validate live movement.
 
@@ -228,7 +239,7 @@ The editor and server use formation-specific categories, leaving native UnitType
 
 Unlisted units keep their native category (including infantry, aircraft and existing transports). Harvester is removed from the selector; legacy Harvester preferences are removed on import/load. Review old category-based layouts: the same category names now use these memberships.
 
-Physical footprints: after the game initializes ObjectInfo definitions, the server exports cached local `PhysicalBounds.size.x/z` once to `UserData/Formations_cfg/metadata/footprints.json`. Use **Load game footprints** in the editor; measurements are cached in browser storage when available. Specific units use their measured dimensions; multiple/type preferences use the maximum width and maximum length of all preferred units. Unrestricted slots, or preferences with missing measurements, use a clearly labelled dashed **generic 8 × 4 m** rectangle. The editor does not invent measured data. Width/length on the grid equal metres divided by metres per position, and redraw immediately when scale or preferences change. Rectangles are approximate local physical bounds, not exact collision meshes; dots remain position markers. Real measurements require a game initialization; offline checks use sample measurements only.
+Physical footprints: after the game initializes ObjectInfo definitions, the server exports cached local `PhysicalBounds.size.x/z` once to `UserData/cfg/Formation/metadata/footprints.json`. Use **Load game footprints** in the editor; measurements are cached in browser storage when available. Specific units use their measured dimensions; multiple/type preferences use the maximum width and maximum length of all preferred units. Unrestricted slots, or preferences with missing measurements, use a clearly labelled dashed **generic 8 × 4 m** rectangle. The editor does not invent measured data. Width/length on the grid equal metres divided by metres per position, and redraw immediately when scale or preferences change. Rectangles are approximate local physical bounds, not exact collision meshes; dots remain position markers. Real measurements require a game initialization; offline checks use sample measurements only.
 
 Move, commander, attack-staging and Follow use the same staged assignment search. Each complete pass exhausts green before yellow, orange and red (legacy numeric 3 and numeric 4 both mean red). Within a colour, maximum matching considers the whole pending group, then favours explicit unit matches, category matches, unrestricted positions, and nonmatching fallback. Navigation rejection is per unit/slot; physical spacing reserves a conservative horizontal bounds radius plus 0.5 m. Successful slot reservations stay fixed during retries. A failed order frees that candidate for rescanning. A position may remain empty for concrete navigation, size/spacing or eligibility reasons, never because of the old first-six/128/256 search cutoff.
 
@@ -289,3 +300,17 @@ GetPlayerPanelPage now advertises commanderLock=true for commander scope. Its lo
 ## Optional ModUI integration (2.15.2)
 
 ModUIData.cs and ModUI_Export.cs supply shared settings and authenticated player-specific choices to Si_ServerModUI 2.0.0, without a UI assembly dependency. Selection commands carry PanelRevision and use ApiPanelAction for role/team/stale-catalog checks. /formation enabled on|off is a thin master alias; /formation close|exit and active-menu /close, /exit, /0 use common menu cleanup. Ownership probing recognizes Si_Buy as well as legacy KoH. Native movement and Follow remain unchanged. Built, not installed; user-owned live checks remain required.
+
+## Personal ModUI status exports (2.15.4)
+
+The command list now starts with a short feature description. `/formationtolerance` and `/formationfalloff` require AdminMod Generic power, including for commanders; the old `/FormationFallof` spelling is an admin-only alias. These remain legacy settings with no current movement effect.
+
+The standard personal export supplies **Allowed group size** and the current role's picked formations under **My formations**. FPS size uses the effective player limit, including its leader and any admin/API/policy override; commander size uses the eligible-ground-unit selection cap. FPS players get Move, Follow and Attack selections; commanders get Commander formation. An inactive custom selection is marked as using native behaviour. Stable IDs allow compatible clients to retain their display selections.
+
+The custom status compatibility hook has been removed. Formation no longer patches ModUI's frame builder. Personal status fields use only `ModUIPlayerData`; Si_ServerModUI 2.0.0 currently ignores personal `stats`, so those fields require native support in ModUI to reach the status window. Shared status, personal formation controls and chat commands retain their standard integration paths.
+
+See [how ModUI status sharing works](MODUI_STATUS.md) for the shared/personal export contract and the current personal-status gap.
+
+Live checks remain user-owned: confirm a non-admin commander cannot use either setting or the old alias; confirm a Generic admin can; check the feature text and standard personal formation controls; verify shared Formation service status and ordinary chat-only/server-only use without ModUI. Compilation does not verify in-game behaviour. Built DLL is prepared separately from the installed `Mods/Si_Formation.dll`.
+
+Configuration now lives in `UserData/cfg/Formation`, including the CFG, formation catalogs and metadata. On startup, missing files are copied from the legacy `UserData/Formations_cfg` directory; existing destination files take precedence. All preference saves and footprint exports use the new directory.

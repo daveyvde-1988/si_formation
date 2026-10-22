@@ -12,7 +12,22 @@ namespace Si_Formation
 {
     public sealed partial class Formations
     {
-        private static string PreferencesPath=>Path.Combine(MelonLoader.Utils.MelonEnvironment.UserDataDirectory,"Formations_cfg","si_formation.cfg");
+        private static string ConfigDirectory=>Path.Combine(MelonLoader.Utils.MelonEnvironment.UserDataDirectory,"cfg","Formation");
+        private static string PreferencesPath=>Path.Combine(ConfigDirectory,"si_formation.cfg");
+        private static void MigrateConfiguration()
+        {
+            string legacy=Path.Combine(MelonLoader.Utils.MelonEnvironment.UserDataDirectory,"Formations_cfg");
+            Directory.CreateDirectory(ConfigDirectory);
+            if(!Directory.Exists(legacy))return;
+            // Keep existing destination files and preserve the legacy originals for rollback.
+            foreach(string source in Directory.GetFiles(legacy,"*",SearchOption.AllDirectories))
+            {
+                string destination=Path.Combine(ConfigDirectory,source.Substring(legacy.Length+1));
+                if(File.Exists(destination))continue;
+                Directory.CreateDirectory(Path.GetDirectoryName(destination));
+                File.Copy(source,destination);
+            }
+        }
         private static string preferenceLayout;
         private void InstallPreferenceLayout()
         {

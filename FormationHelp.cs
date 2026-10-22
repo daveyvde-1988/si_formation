@@ -14,6 +14,7 @@ namespace Si_Formation
             if(p.IsCommander)
             {
                 Reply(p,"/formation <number> - commander formation; /formation lock - next move only; /formation unlock - release locks.");
+                Reply(p,"/formationspace <metres> - personal blueprint spacing for new moves (maximum 1000); /formationspace 0 restores blueprint spacing; /formationspace status reports it.");
                 Reply(p,"/scout - next move selection scouts (at least five eligible units). Aircraft and excess units use native movement on normal moves.");
             }
             else
@@ -21,9 +22,8 @@ namespace Si_Formation
                 Reply(p,"/formation <function> <number> - 1 Move, 2 Follow, 3 Attack; /disband all - disband your AI squad (leader only).");
                 Reply(p,"/followformation lock|unlock|status - coordinate Move, Follow and Attack staging; menu /5 toggles. Follow uses moving formation slots; player speed stays unrestricted.");
             }
-            if(p.IsCommander||IsAdministrator(p))
-                Reply(p,"Legacy compatibility only: /formationTolerance <10..100>, /FormationFallof <10..90>; neither changes current movement.");
             if(!IsAdministrator(p))return;
+            Reply(p,"Admin legacy compatibility only: /formationtolerance <10..100>, /formationfalloff <10..90> (alias /FormationFallof); neither changes current movement.");
             Reply(p,"/formation rallyfix on|off|status - saved automatic production parking; /formation debug on|off|status - match diagnostic logging.");
             Reply(p,"Admin: /formation on|off - global match switch; /formationsizeglobal <1..50>; /formationsize \"Player Name\" <1..50> (FPS, including leader).");
             Reply(p,"/formationsizecommander <1..100> | status - saved per-selection cap (default 75); /Formationtraveldistance <0..10000> | status - saved lock maximum metres (default 1000).");
@@ -34,7 +34,7 @@ namespace Si_Formation
         }
         private static void EnsureBundledFormations()
         {
-            string directory=Path.Combine(MelonLoader.Utils.MelonEnvironment.UserDataDirectory,"Formations_cfg");
+            string directory=ConfigDirectory;
             Directory.CreateDirectory(directory);
             // Never introduce duplicate definitions into an existing custom catalog.
             if(Directory.GetFiles(directory,"*.json").Length>0)return;

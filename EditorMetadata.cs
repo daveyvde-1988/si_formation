@@ -48,7 +48,7 @@ namespace Si_Formation
                     units[entry.Key]=new {width=size.x,length=size.z,category=EditorCategories.For(info)};
                 }
                 if(units.Count==0){DebugWarning("No initialized physical footprints available for editor export.");return;}
-                string directory=Path.Combine(MelonLoader.Utils.MelonEnvironment.UserDataDirectory,"Formations_cfg","metadata");
+                string directory=Path.Combine(ConfigDirectory,"metadata");
                 Directory.CreateDirectory(directory);
                 string file=Path.Combine(directory,"footprints.json");
                 File.WriteAllText(file,JsonConvert.SerializeObject(new {format="silica-unit-footprints",version=1,source="ObjectInfo.PhysicalBounds (local prefab bounds, metres)",units},Formatting.Indented));

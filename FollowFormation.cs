@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.IO;
@@ -10,7 +10,7 @@ using Silica.AI;
 using SilicaAdminMod;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "2.15.2", "Local")]
+[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "2.16.0", "Local")]
 [assembly: MelonGame("Bohemia Interactive", "Silica")]
 [assembly: MelonOptionalDependencies("Admin Mod")]
 
@@ -25,6 +25,7 @@ namespace Si_Formation
             internal Team Team;
             internal bool PersonalEnabled,CommanderRole;
             internal bool FollowFacingLock;
+            internal float CommanderSpacing; // 0 uses the blueprint's metresPerNode; personal/session-only.
             internal readonly Dictionary<string,FormationDefinition> Functions=new Dictionary<string,FormationDefinition>();
         }
         private static readonly Dictionary<Player,Selection> Selections=new Dictionary<Player,Selection>();
@@ -55,15 +56,16 @@ namespace Si_Formation
                     if(AdminMethods.FindAdminCommandFromString(command)!=null||PlayerMethods.FindPlayerCommandFromString(command)!=null)
                         throw new InvalidOperationException("Command already registered: "+command);
                 serverThread=System.Threading.Thread.CurrentThread.ManagedThreadId;
+                MigrateConfiguration();
                 InstallPreferenceLayout();
                 prefs=MelonPreferences.CreateCategory("Si_Formation");
-                prefs.SetFilePath(Path.Combine(MelonLoader.Utils.MelonEnvironment.UserDataDirectory,"Formations_cfg","si_formation.cfg"));
+                prefs.SetFilePath(PreferencesPath);
                 enabledDefault=prefs.CreateEntry("Enabled",true,description:"Default master state restored each match; /formation on|off is match-only");
                 groupLimitDefault=prefs.CreateEntry("GroupLimit",BuiltInLimit,description:"Default FPS group maximum including leader, 1..50; /formationsize overrides are match-only");
                 debugDefault=prefs.CreateEntry("Debug",false,description:"Si_Formation bounded diagnostic logging");
                 debug=debugDefault.Value;
                 EnsureBundledFormations();
-                Catalog.Load(Path.Combine(MelonLoader.Utils.MelonEnvironment.UserDataDirectory,"Formations_cfg"),DebugMsg);
+                Catalog.Load(ConfigDirectory,DebugMsg);
                 RegisterFormationDefaults();
                 RegisterCommanderOptions();
                 InstallRallyFix();
@@ -345,6 +347,7 @@ namespace Si_Formation
             GameEvents.OnGameStarted-=RoundStarted;
             GameEvents.OnGameEnded-=CommanderRoundEnded;
             foreach(var cmd in registered)PlayerMethods.UnregisterPlayerCommand(cmd);
+            foreach(var cmd in registeredOptionAdmins)AdminMethods.UnregisterAdminCommand(cmd);
             HarmonyInstance.UnpatchSelf();Ready=false;
         }
     }

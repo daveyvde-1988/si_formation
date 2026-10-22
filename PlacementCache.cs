@@ -20,6 +20,7 @@ namespace Si_Formation
             private readonly FormationDefinition definition;
             private readonly Vector3 centre,forward;
             private readonly bool mirrored;
+            private readonly float spacingScale;
             private readonly Func<int,Vector3> pointOverride;
             private readonly Func<Unit,int,bool> candidateAllowed;
             internal readonly bool NearestFirst;
@@ -27,8 +28,8 @@ namespace Si_Formation
             private readonly Dictionary<int,int> colours=new Dictionary<int,int>();
             private readonly Dictionary<Unit,UnitFacts> units=new Dictionary<Unit,UnitFacts>();
             internal PlacementCache(FormationDefinition f,Vector3 c,Vector3 heading,bool mirror,
-                Func<int,Vector3> pointOverride=null,Func<Unit,int,bool> candidateAllowed=null,bool nearestFirst=false)
-            {definition=f;centre=c;forward=heading;mirrored=mirror;this.pointOverride=pointOverride;this.candidateAllowed=candidateAllowed;NearestFirst=nearestFirst;}
+                Func<int,Vector3> pointOverride=null,Func<Unit,int,bool> candidateAllowed=null,bool nearestFirst=false,float spacingScale=1)
+            {definition=f;centre=c;forward=heading;mirrored=mirror;this.pointOverride=pointOverride;this.candidateAllowed=candidateAllowed;NearestFirst=nearestFirst;this.spacingScale=spacingScale;}
             private UnitFacts Facts(Unit u)
             {
                 if(!units.TryGetValue(u,out var facts))units[u]=facts=new UnitFacts
@@ -38,7 +39,7 @@ namespace Si_Formation
             internal float UnitRadius(Unit u)=>Facts(u).Radius;
             internal Vector3 Point(int slot)
             {
-                if(!points.TryGetValue(slot,out var value))points[slot]=value=pointOverride!=null?pointOverride(slot):World(definition.Slots[slot],definition,centre,forward,mirrored);
+                if(!points.TryGetValue(slot,out var value))points[slot]=value=pointOverride!=null?pointOverride(slot):World(definition.Slots[slot],definition,centre,forward,mirrored,spacingScale);
                 return value;
             }
             internal int Colour(int slot)

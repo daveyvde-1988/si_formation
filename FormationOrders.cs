@@ -174,8 +174,8 @@ namespace Si_Formation
         }
         private static bool Separated(Vector3 point,float radius,IEnumerable<Placement> reserved,Unit self=null)
             =>!reserved.Any(p=>p.Unit!=self&&DistanceSq(point,p.Point)<(radius+p.Radius)*(radius+p.Radius));
-        private static Vector3 World(FormationSlot slot,FormationDefinition f,Vector3 centre,Vector3 forward,bool mirrored=false)
-            =>f.DirectionSensitive?centre+Vector3.Cross(Vector3.up,forward)*(mirrored?-slot.X:slot.X)+forward*slot.Z:centre+new Vector3(slot.X,0,slot.Z);
+        private static Vector3 World(FormationSlot slot,FormationDefinition f,Vector3 centre,Vector3 forward,bool mirrored=false,float spacingScale=1)
+            =>f.DirectionSensitive?centre+Vector3.Cross(Vector3.up,forward)*((mirrored?-slot.X:slot.X)*spacingScale)+forward*(slot.Z*spacingScale):centre+new Vector3(slot.X*spacingScale,0,slot.Z*spacingScale);
         private static List<Placement> Commit(List<Placement> plan,AgentMoveSpeed speed)
         {
             var issued=new List<Placement>();

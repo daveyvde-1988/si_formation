@@ -26,6 +26,7 @@ namespace Si_Formation
             internal AgentMoveSpeed Speed;
             internal int Attempt;
             internal float NextAttempt;
+            internal float SpacingScale=1;
             internal AttackOperation Attack;
             internal SoftGroup Soft;
             internal bool TwoStage;
@@ -48,6 +49,9 @@ namespace Si_Formation
             var batch=new PlacementRetry {Player=player,Team=player.Team,Group=player.Group,Commander=player.IsCommander,
                 Function=function,Definition=f,Centre=centre,Forward=forward,Speed=speed,Attack=attack,
                 TravelForward=Heading(centre-units.Aggregate(Vector3.zero,(sum,u)=>sum+u.transform.position)/units.Length)};
+            // Capture once per request so later commands cannot change in-flight placement or retries.
+            if(function=="commander"&&For(player).CommanderSpacing>0)
+                batch.SpacingScale=For(player).CommanderSpacing/f.Scale;
             batch.Soft=RememberSelection(player,function,f,units,forward);
             if(attack!=null)batch.Soft.Slots.Clear(); // New approach: choose nearby valid slots again.
             batch.Reserved.AddRange(issued);
@@ -90,7 +94,7 @@ namespace Si_Formation
                     if(batch.Cache==null)batch.Cache=new PlacementCache(batch.Definition,batch.Centre,batch.Forward,batch.Soft.Mirrored,
                         candidateAllowed:batch.Attack==null?(Func<Unit,int,bool>)null:(u,index)=>
                             Vector3.Dot(Flat(World(batch.Definition.Slots[index],batch.Definition,batch.Centre,batch.Forward,batch.Soft.Mirrored)-batch.Centre),batch.TravelForward)<=0.01f,
-                        nearestFirst:batch.Attack!=null);
+                        nearestFirst:batch.Attack!=null,spacingScale:batch.SpacingScale);
                     batch.Search=SearchRemembered(batch.Soft.Slots,batch.Definition,batch.Pending.Select(p=>p.Unit).ToArray(),batch.Centre,batch.Forward,batch.Reserved,
                         u=>PendingCurrent(batch,u),p=>IssuePlacement(batch,p),batch.Soft.Mirrored,batch.Cache).GetEnumerator();
                 }

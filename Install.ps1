@@ -13,7 +13,9 @@ foreach ($legacy in @('Si_FollowFormation.dll','Si_Formations.dll')) {
 $source = Join-Path $PSScriptRoot 'bin\Release\netstandard2.1\Si_Formation.dll'
 $destination = Join-Path $serverRoot 'Mods\Si_Formation.dll'
 $shared = Join-Path $serverRoot 'UserData\MelonPreferences.cfg'
-$config = Join-Path $serverRoot 'UserData\Formations_cfg\si_formation.cfg'
+$config = Join-Path $serverRoot 'UserData\cfg\Formation\si_formation.cfg'
+$legacyDirectory = Join-Path $serverRoot 'UserData\Formations_cfg'
+$legacyConfig = Join-Path $legacyDirectory 'si_formation.cfg'
 if (!(Test-Path -LiteralPath $source)) { throw 'Build Si_Formation first.' }
 $utf8 = New-Object System.Text.UTF8Encoding($false, $true)
 $originalBytes = [IO.File]::ReadAllBytes($shared)
@@ -24,7 +26,8 @@ $hadConfig = Test-Path -LiteralPath $config
 if ($hadConfig) {
     $configBytes = [IO.File]::ReadAllBytes($config)
     $configText = $utf8.GetString($configBytes)
-} elseif ($section.Success) { $configText = $section.Value }
+} elseif (Test-Path -LiteralPath $legacyConfig) { $configText = [IO.File]::ReadAllText($legacyConfig) }
+elseif ($section.Success) { $configText = $section.Value }
 else { $configText = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'Si_Formation.preferences.example.cfg')) }
 $configSection = [regex]::Match($configText,$pattern)
 if (!$configSection.Success) { throw 'Standalone preferences must contain [Si_Formation].' }
@@ -66,6 +69,17 @@ foreach ($target in @($destination,$shared,$config)) {
 }
 if (Get-Process -Name Silica -ErrorAction SilentlyContinue) { throw "Server started during preparation. No deployment performed. Backup: $backup" }
 try {
+    $configDirectory = Split-Path -Parent $config
+    [IO.Directory]::CreateDirectory($configDirectory) | Out-Null
+    if (Test-Path -LiteralPath $legacyDirectory) {
+        Get-ChildItem -LiteralPath $legacyDirectory -Recurse -File | ForEach-Object {
+            $target = Join-Path $configDirectory $_.FullName.Substring($legacyDirectory.Length + 1)
+            if (!(Test-Path -LiteralPath $target)) {
+                [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($target)) | Out-Null
+                Copy-Item -LiteralPath $_.FullName -Destination $target
+            }
+        }
+    }
     [IO.File]::WriteAllBytes($config,$utf8.GetBytes($configText))
     if ($updatedShared -cne $originalText) { [IO.File]::WriteAllBytes($shared,$utf8.GetBytes($updatedShared)) }
     Copy-Item -LiteralPath $source -Destination $destination -Force

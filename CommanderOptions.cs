@@ -15,6 +15,7 @@ namespace Si_Formation
             internal int Pending; // 1: snapshot lock; 2: scout. One pending action per commander.
         }
         private static readonly Dictionary<Player,CommanderOptions> CommanderSettings=new Dictionary<Player,CommanderOptions>();
+        private readonly List<string> registeredOptionAdmins=new List<string>();
         private static MelonPreferences_Entry<int> travelDefault,toleranceDefault,falloffDefault;
         private static int? moderatorTolerance,moderatorFalloff;
         private static int LockTravelMaximum=>(int)ValidOption(travelDefault?.Value??1000,0,10000,1000);
@@ -46,6 +47,7 @@ namespace Si_Formation
         }
         private void RegisterCommanderOptions()
         {
+            RegisterCommanderCommand("formationspace",FormationSpaceCommand);
             speedCapDefault=prefs.CreateEntry("FormationSpeedCap",true,description:"Optional faster-unit ceiling near final arrival; centre-based travel pacing is always active. Admin /Formationspeedcap on|off overrides for this match");
             RegisterCommanderCommand("Formationspeedcap",SpeedCapCommand);
             RegisterDepartureSettings();
@@ -55,8 +57,16 @@ namespace Si_Formation
             RegisterCommanderCommand("scout",(p,a)=>ArmCommander(p,2));
             RegisterCommanderCommand("Formationtraveldistance",TravelDistanceCommand);
             RegisterCommanderCommand("formationTravel",TravelDistanceCommand);
-            RegisterCommanderCommand("formationTolerance",(p,a)=>SetCommanderOption(p,a,1));
-            RegisterCommanderCommand("FormationFallof",(p,a)=>SetCommanderOption(p,a,2));
+            RegisterOptionAdminCommand("formationTolerance",(p,a)=>SetCommanderOption(p,a,1),"Legacy position tolerance (10..100%); currently does not affect movement.");
+            RegisterOptionAdminCommand("formationFalloff",(p,a)=>SetCommanderOption(p,a,2),"Legacy fall-off slowdown (10..90%); currently does not affect movement.");
+            RegisterOptionAdminCommand("FormationFallof",(p,a)=>SetCommanderOption(p,a,2),"Compatibility alias for /formationfalloff.");
+        }
+        private void RegisterOptionAdminCommand(string name,HelperMethods.CommandCallback callback,string description)
+        {
+            if(AdminMethods.FindAdminCommandFromString(name)!=null||PlayerMethods.FindPlayerCommandFromString(name)!=null)
+                throw new InvalidOperationException("Command already registered: "+name);
+            AdminMethods.RegisterAdminCommand(name,callback,Power.Generic,description);
+            registeredOptionAdmins.Add(name);
         }
         private void RegisterCommanderCommand(string name,Action<Player,string> callback)
         {
@@ -65,6 +75,25 @@ namespace Si_Formation
             PlayerMethods.RegisterPlayerCommand(name,(p,a)=>callback(p,a),true);registered.Add(name);
         }
         private static float ValidOption(int value,int min,int max,int fallback)=>value>=min&&value<=max?value:fallback;
+        private static string CommanderSpacingText(Player p)
+        {
+            float spacing=For(p).CommanderSpacing;
+            return spacing>0?spacing.ToString("G",CultureInfo.InvariantCulture)+" metres (personal override)":"blueprint spacing";
+        }
+        private static void FormationSpaceCommand(Player p,string args)
+        {
+            if(!ApiReady||!p||!p.IsCommander||!p.Team||(networkSender&&networkSender!=p))
+            {Reply(p,"requires an active commander on an initialized server.");return;}
+            if(!CommandArgument.TryParse(args,out string value,out bool quoted)||quoted)
+            {Reply(p,"usage: /formationspace <0..1000 metres> | status; 0 restores blueprint spacing.");return;}
+            if(value.Length==0||value.Equals("status",StringComparison.OrdinalIgnoreCase))
+            {Reply(p,"Commander spacing: "+CommanderSpacingText(p)+".");return;}
+            if(!float.TryParse(value,NumberStyles.Float,CultureInfo.InvariantCulture,out float spacing)||
+                float.IsNaN(spacing)||float.IsInfinity(spacing)||spacing<0||spacing>1000)
+            {Reply(p,"usage: /formationspace <0..1000 metres> | status; use a decimal point; 0 restores blueprint spacing.");return;}
+            For(p).CommanderSpacing=spacing;
+            Reply(p,"Commander spacing: "+CommanderSpacingText(p)+"; applies to your next blueprint moves, for this commander session.");
+        }
         private static CommanderOptions Options(Player p)
         {
             if(!CommanderSettings.TryGetValue(p,out var settings)||settings.Team!=p.Team)
@@ -95,7 +124,7 @@ namespace Si_Formation
         }
         private static void SetCommanderOption(Player p,string text,int index)
         {
-            if(!ApiReady||!p||(!p.IsCommander&&!IsAdministrator(p))) {Reply(p,"commander or moderator Generic power required.");return;}
+            if(!ApiReady||!IsAdministrator(p)) {Reply(p,"admin Generic power required.");return;}
             if(!CommandArgument.TryParse(text,out var value,out var quoted)||quoted||
                 !int.TryParse(value,NumberStyles.None,CultureInfo.InvariantCulture,out int number)||
                 number<10||number>(index==1?100:90))
