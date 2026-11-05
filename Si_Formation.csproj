@@ -4,7 +4,7 @@
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <AssemblyName>Si_Formation</AssemblyName>
-    <Version>2.16.0</Version>
+    <Version>2.16.2</Version>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <ServerRoot Condition="'$(ServerRoot)' == ''">$(MSBuildThisFileDirectory)..\..</ServerRoot>
   </PropertyGroup>
@@ -14,6 +14,7 @@
     <Compile Include="FollowFormation.cs" />
     <Compile Include="FormationMenu.cs" />
     <Compile Include="ClientPanelApi.cs" />
+    <Compile Include="OptimizerBridge.cs" />
     <Compile Include="FormationHelp.cs" />
     <Compile Include="PreferenceLayout.cs" />
     <EmbeddedResource Include="Si_Formation.preferences.example.cfg" LogicalName="Si_Formation.Preferences.cfg" />

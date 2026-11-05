@@ -27,6 +27,14 @@ namespace Si_Formation
 
             // Navigation height is authoritative; terrain provides the local height seed.
             // Keep lateral snapping tight, while permitting terrain/nav-surface differences.
+            if (unit is CreatureDecapod creature && creature.ClimbEnabled)
+            {
+                // Climbing navigation may lie on a structure rather than the terrain below it.
+                // Prefer the requested surface height, then try terrain as a secondary seed.
+                var mask = unit.AIAgent.AgentPathfinding.PathfindingSeeker.graphMask;
+                if (GameAI.GetPointValidForAI(desired, mask, out point, 75f, 5f, 75f)) return true;
+                return GameAI.GetPointValidForAI(projected, mask, out point, 75f, 5f, 75f);
+            }
             return GameAI.GetPointValidForAI(projected,
                 unit.AIAgent.AgentPathfinding.PathfindingSeeker.graphMask,
                 out point, 75f, 5f, 30f);

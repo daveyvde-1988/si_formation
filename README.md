@@ -1,5 +1,9 @@
 # Si_Formation
 
+Version 2.16.2 removes the extra structure/construction-footprint exclusion and factory stand-off for alien rally parking. Climbing-enabled aliens try the requested navigation-surface height before a terrain-height seed, allowing valid structure surfaces. Native graph masks, map bounds, lateral projection limits, unit reservations and move-order validation remain; human placement rules are unchanged. Build verified; live verification remains pending.
+
+Version 2.16.1 adds an order-free optimizer bridge: `FormationApi.BeginOptimizerPlacement(ulong, Unit[], Vector3, Vector3)` returns an incremental main-thread search using the selected commander blueprint, personal spacing, preferences, projection and reservation rules. Enumerator values are null work steps or `KeyValuePair<Unit,Vector3>` destinations; no active custom layout returns no destinations for native fallback. The caller must dispose/cancel stale work and retains authority over dispatch. `GetOptimizerCommanderId(bool,Team)` and `IsOptimizerScoutPending(ulong)` expose commander context; `OptimizerScoutDispatched` notifies validated scout recipients before their native moves so external grouping can stand aside. No UI or native protocol change. Build verification only; live optimizer interaction remains pending.
+
 Arrange FPS squads and commander armies into custom formations. Choose layouts for moving, following and attacking, keep formation slots as units travel, and coordinate group movement. Runs on the dedicated server with MelonLoader and Admin Mod; clients need no mod.
 
 ## Features at a glance

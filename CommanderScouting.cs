@@ -58,6 +58,7 @@ namespace Si_Formation
                         if(destinations.Any(d=>DistanceSq(d,destination)<separation*separation))continue;
                         var target=new OrderTarget(destination);var parameters=OrderIssueParams.Commanded(speed);
                         if(!u.OrderAgent.CanIssueOrder(OrderDefinitionRegistry.Move,in target))continue;
+                        FormationApi.NotifyOptimizerScout(u);
                         CancelUnit(u);Followers.Remove(u);Superseded.Remove(u);UnitCohesionGroup.Detach(u);
                         if(u.OrderAgent.IssueOrder(OrderDefinitionRegistry.Move,in target,in parameters))
                         {dispatched++;destinations.Add(destination);placed=true;}

@@ -11,3 +11,9 @@
 - Output: `bin/Release/netstandard2.1/Si_Formation.dll`. Compilation does not verify in-game behavior. For documentation-only edits, no build is needed.
 - Fix build errors caused by the change and rebuild; stop after a successful build. If blocked by dependencies, report the specific blocker without installing tools or changing unrelated settings.
 - Finish briefly: what changed, build result, and a short focused checklist for the user's in-game verification. Keep confirmed API discoveries or changed behavior in existing documentation only when useful for future work; avoid session transcripts.
+
+## Shared project context
+
+- Explicitly read `../../Silica-Shared-Context/AGENTS.md`, MOD_REGISTRY.md and only relevant API_CONTRACTS.md / DEPENDENCIES.md sections. These sibling instructions are not automatically inherited. If inaccessible, report the missing context.
+- Use shared search ID `formation`, adding `ranks`, `logistics`, `server-ui`, `formation-tool` or support IDs when relevant; inspect original source before decisions. Ranks' owner-scoped policy consumer, editor JSON and ModUI exports are documented cross-project relationships; vector similarity alone proves none.
+- After authorized changes, review dependency/API impact, update verified local facts, propose shared changes and refresh affected index IDs. Preserve the existing test/build/server restrictions above. Do not commit across repositories or push without explicit authorization.

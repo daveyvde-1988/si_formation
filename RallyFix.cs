@@ -396,7 +396,8 @@ namespace Si_Formation
             yield return true;
             if(!valid||!RallyCurrent(ticket))yield break;
             var area=ticket.Area;int work=0;
-            if(area.Automatic&&RallyOverlaps(area.State.Factory,point,75+area.Radius))yield break;
+            bool alien=ticket.Unit.AIAgent is AIAlienAgent;
+            if(!alien&&area.Automatic&&RallyOverlaps(area.State.Factory,point,75+area.Radius))yield break;
             foreach(var other in RallyTickets.Values.ToArray())
             {
                 if((preview||other!=ticket)&&other.Spot!=null&&RallyTooClose(point,other.Spot.Point,
@@ -411,12 +412,12 @@ namespace Si_Formation
             }
             foreach(var structure in Structure.Structures.ToArray())
             {
-                if(structure&&!structure.IsDestroyed&&RallyOverlaps(structure,point,area.Radius))yield break;
+                if(!alien&&structure&&!structure.IsDestroyed&&RallyOverlaps(structure,point,area.Radius))yield break;
                 if(++work%32==0){yield return true;if(!RallyCurrent(ticket))yield break;}
             }
             foreach(var site in ConstructionSite.ConstructionSites.ToArray())
             {
-                if(site&&!site.IsDestroyed&&RallyOverlaps(site,point,area.Radius))yield break;
+                if(!alien&&site&&!site.IsDestroyed&&RallyOverlaps(site,point,area.Radius))yield break;
                 if(++work%32==0){yield return true;if(!RallyCurrent(ticket))yield break;}
             }
             foreach(var unit in Unit.Units.ToArray())
