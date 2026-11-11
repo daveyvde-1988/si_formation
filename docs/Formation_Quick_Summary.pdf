@@ -1,0 +1,99 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 4 0 R /F2 5 0 R /F3 6 0 R >> >> /Contents 7 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+7 0 obj
+<< /Length 7037 >>
+stream
+BT /F2 21 Tf 0.08 0.24 0.35 rg 1 0 0 1 38.00 800.89 Tm (Si_Formation) Tj ET
+BT /F2 10 Tf 0.18 0.44 0.50 rg 1 0 0 1 191.00 801.89 Tm (QUICK SUMMARY) Tj ET
+BT /F1 8.3 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 774.89 Tm (3.7.0  |  11 November 2026  |  Brief helper; full report to follow) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 757.89 Tm (Si_Formation tunes native commander formations, FPS followers and production rally parking. Recent work adds optional) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 746.24 Tm (ground-group cohesion, separate Human/Alien tuning and an infantry travel-cover switch.) Tj ET
+BT /F2 10.5 Tf 0.08 0.30 0.39 rg 1 0 0 1 38.00 727.59 Tm (Group movement) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 709.58 Tm (Human and Alien Group cohesion switches are independent and OFF by default. Each faction has its own General, Close,) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 697.93 Tm (Medium and Long settings. Distance boundaries and near/far tuning are configurable.) Tj ET
+BT /F2 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 42.00 683.28 Tm (Default move distance) Tj ET
+BT /F2 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 191.00 683.28 Tm (Behavior) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 42.00 668.63 Tm (Close: below 500m) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 191.00 668.63 Tm (A single click turns the remembered formation toward travel, then attempts formation) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 191.00 656.99 Tm (holding and coordinated arrival.) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 42.00 642.34 Tm (Medium: 500-1000m inclusive) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 191.00 642.34 Tm (Arrival pacing without holding the shape during travel; units return to their intended) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 191.00 630.69 Tm (formation at the destination.) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 42.00 616.04 Tm (Long: above 1000m) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 191.00 616.04 Tm (Lighter arrival pacing without formation holding.) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 598.39 Tm (Dragging specifies a new formation and uses arrival pacing. Obstructions or a poor shape can cancel holding while arrival pacing) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 586.75 Tm (continues. Excessive spread, lag, stalls, losses or delay can release coordination entirely, letting units proceed independently.) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 575.10 Tm (This is soft speed control, not rigid movement or guaranteed simultaneous arrival.) Tj ET
+BT /F2 10.5 Tf 0.08 0.30 0.39 rg 1 0 0 1 38.00 556.45 Tm (Formation memory and aircraft) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 538.44 Tm (-) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 48.00 538.44 Tm (Complete unchanged groups reuse their intended destination layout, including when the previous move is unfinished.) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 48.00 526.79 Tm (Temporary detours do not become the remembered shape.) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 513.14 Tm (-) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 48.00 513.14 Tm (Selecting only part of a remembered group, adding units or merging groups creates a fresh formation. The unselected) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 48.00 501.49 Tm (remainder reforms on its next move too.) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 487.84 Tm (-) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 48.00 487.84 Tm (Aircraft use separate centered rear rows and do not occupy ground slots or influence ground-group pacing. Native flight) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 48.00 476.20 Tm (altitude and navigation remain in control.) Tj ET
+BT /F2 10.5 Tf 0.08 0.30 0.39 rg 1 0 0 1 38.00 455.55 Tm (Large or map-wide selections) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 437.53 Tm (If a selection is too dispersed or oversized, eligible selected ground units already within 500m of the destination centre can) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 425.88 Tm (coordinate arrival separately. Distant selected units move independently and do not slow this local group or count toward its) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 414.24 Tm (failures.) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 399.59 Tm (Membership is captured when the order is issued; later arrivals do not join. Each faction's DestinationRadius setting changes the) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 387.94 Tm (radius; 0 disables this fallback. Normal unit limits and cancellation rules still apply.) Tj ET
+BT /F2 10.5 Tf 0.08 0.30 0.39 rg 1 0 0 1 38.00 369.29 Tm (Infantry travel-cover preference) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 351.28 Tm (Travel cover preference disabler is ON by default, under Commander placement. ON skips the native infantry step that redirects) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 339.63 Tm (travel waypoints toward nearby cover; OFF restores it. Combat reactions, cover choices and claims remain native. The shared) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 327.98 Tm (path postprocessor can also affect travel to combat-selected cover. Changes apply to new or recalculated paths, with the) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 316.33 Tm (Formation master enabled.) Tj ET
+BT /F2 10.5 Tf 0.08 0.30 0.39 rg 1 0 0 1 38.00 297.69 Tm (Handy commands) Tj ET
+BT /F3 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 43.00 279.67 Tm (/groupcohesion on                 /aliengroupcohesion on) Tj ET
+BT /F3 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 43.00 268.02 Tm (/cohesion DestinationRadius 500   /aliencohesion DestinationRadius 500) Tj ET
+BT /F3 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 43.00 256.37 Tm (/travelcoverdisabler on           /travelcoverdisabler status) Tj ET
+BT /F3 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 43.00 244.73 Tm (/cohesiondebug next               /cohesiondebug groups) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 230.08 Tm (Changes and debug commands require AdminMod Generic permission; debug next also requires commander role. Settings are) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 218.43 Tm (shared by the server and available through the existing mod menu and UserData/cfg/Formation/si_formation_native.cfg.) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 203.78 Tm (Status: The 3.7.0 Release build passed with zero warnings and errors. The candidate was staged, not installed or) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 192.13 Tm (gameplay-tested during this work. Live behavior remains to be verified. See Group_Cohesion.md and Changes_3.7.0.md for) Tj ET
+BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 180.49 Tm (details.) Tj ET
+0.75 0.81 0.84 RG 0.5 w 38 30 m 557.28 30 l S
+BT /F1 7.5 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 19.00 Tm (Si_Formation 3.7.0  |  Summary snapshot - see repository docs for full settings) Tj ET
+BT /F1 7.5 Tf 0.18 0.22 0.27 rg 1 0 0 1 535.28 19.00 Tm (1 / 1) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Title (Si_Formation 3.7.0 - Quick Summary) /Subject (Brief feature and configuration helper) /Author (Si_Formation) >>
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000273 00000 n 
+0000000343 00000 n 
+0000000418 00000 n 
+0000000486 00000 n 
+0000007575 00000 n 
+trailer
+<< /Size 9 /Root 1 0 R /Info 8 0 R >>
+startxref
+7713
+%%EOF

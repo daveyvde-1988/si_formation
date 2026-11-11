@@ -2,6 +2,7 @@
 
 This is the native implementation for Silica game 1.0. The mod version is **3.7.0**, and this `si_formation` folder is its canonical source. The legacy implementation is preserved on [legacy/pre-native-1.0-20261111](https://github.com/daveyvde-1988/si_formation/tree/legacy/pre-native-1.0-20261111) and in a separate local archive. The native implementation does not include the old public FormationApi or custom blueprint system.
 
+- [One-page quick summary (3.7.0 PDF)](docs/Formation_Quick_Summary.pdf) | [Editable text](docs/Formation_Quick_Summary.md)
 - [Group cohesion settings, behavior and debug guide](docs/Group_Cohesion.md)
 - [3.7.0 travel cover, intended layouts and local arrival cohorts](docs/Changes_3.7.0.md)
 - [3.6.1 partial-selection reformation](docs/Changes_3.6.1.md)
