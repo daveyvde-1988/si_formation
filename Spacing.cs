@@ -32,7 +32,13 @@ namespace Si_Formation
             if(source.Count==0)return result;
             direction.y=0;if(direction.sqrMagnitude<.001f)direction=Vector3.forward;direction.Normalize();
             Vector3 right=Vector3.Cross(Vector3.up,direction);
-            var units=source.OrderByDescending(u=>Vector3.Dot(u.transform.position,direction)).ToList();
+            var aircraft=source.Where(IsFormationAir).ToList();
+            var units=source.Where(u=>!IsFormationAir(u)).OrderByDescending(u=>Vector3.Dot(u.transform.position,direction)).ToList();
+            if(units.Count==0)
+            {
+                AddAirFormationSlots(aircraft,result,anchor,direction,settings,scale);
+                pitch=AirFormationPitch(aircraft);return result;
+            }
             float largest=units.Max(Radius);
             int rows=Mathf.Max(1,Mathf.RoundToInt(Mathf.Sqrt(units.Count/1.8f))),columns=Mathf.CeilToInt((float)units.Count/rows);
             float depth=0,previousDepth=0;
@@ -51,7 +57,9 @@ namespace Si_Formation
                 }
                 pitch+=width;previousDepth=rowDepth;
             }
-            pitch/=units.Count;return result;
+            pitch/=units.Count;
+            AddAirFormationSlots(aircraft,result,anchor,direction,settings,scale);
+            return result;
         }
         private void InstallSpacing()
         {
@@ -60,15 +68,55 @@ namespace Si_Formation
         }
         private static void PlaceFormationUnit(BaseGameObject obj,ref Vector3 worldPosition)
         {
-            if(Active&&Game.GetIsServer()&&activeLayout!=null&&obj is Unit unit&&activeLayout.Points.TryGetValue(unit,out var point))worldPosition=point;
+            if(!Active||!Game.GetIsServer()||!(obj is Unit unit))return;
+            if(activeCohesion!=null&&activeCohesion.Skip==null&&activeCohesion.LocalPoints!=null&&activeCohesion.LocalPoints.TryGetValue(unit,out var local))
+            {worldPosition=local;return;}
+            if(activeLayout!=null&&activeLayout.Points.TryGetValue(unit,out var point))worldPosition=point;
         }
         private static void ScaleLineSlots(List<Unit> units,Vector3 start,Vector3 end,List<Vector3> slotsOut,ref float spacing,bool __result)
         {
-            if(!Active||!Game.GetIsServer()||!__result||activeLayout==null)return;
+            if(!Active||!Game.GetIsServer()||activeLayout==null)return;
+            if(activeCohesion!=null&&activeCohesion.DestinationLocal&&activeCohesion.LocalPoints!=null)return;
             var context=activeLayout;
-            var points=SilicaFormationShared.CommanderLineLayout.Repack(units,slotsOut,start,end,context.Scale,context.Settings.SizeInfluence,
-                (unit,desired)=>FormationEligible(unit)&&TerrainProjection.TryProject(unit,desired,out var point)?(Vector3?)point:null,out var pitch);
+            bool separateAir=units.Any(IsFormationAir);
+            if(!__result)
+            {
+                if(activeCohesion!=null)
+                {
+                    activeCohesion.Anchor=start;
+                    Vector3 heading=start-activeCohesion.Origin;heading.y=0;
+                    activeCohesion.Heading=heading.sqrMagnitude<.001f?Vector3.forward:heading.normalized;
+                }
+                if(!separateAir)return;
+                var eligible=units.Where(FormationEligible).ToList();
+                if(eligible.Count==0)return;
+                var ground=eligible.Where(unit=>!IsFormationAir(unit)).ToList();
+                var facingUnits=ground.Count>0?ground:eligible;
+                Vector3 centre=facingUnits.Aggregate(Vector3.zero,(sum,unit)=>sum+unit.transform.position)/facingUnits.Count;
+                // Native rejects short/degenerate drag lines and dispatches its grid
+                // around start. Supply keyed separated-grid overrides for that same
+                // fallback without changing the native result, list or slot count.
+                context.Points=GridSlots(eligible,start,start-centre,context.Settings,context.Scale,out var fallbackPitch);
+                if(fallbackPitch>0){spacing=fallbackPitch;context.Pitch=fallbackPitch;}
+                return;
+            }
+            var groundUnits=separateAir?units.Where(u=>!IsFormationAir(u)).ToList():units;
+            var groundSlots=separateAir?units.Select((unit,index)=>new{unit,index}).Where(item=>!IsFormationAir(item.unit)&&item.index<slotsOut.Count)
+                .Select(item=>slotsOut[item.index]).ToList():slotsOut;
+            var points=SilicaFormationShared.CommanderLineLayout.Repack(groundUnits,groundSlots,start,end,context.Scale,context.Settings.SizeInfluence,
+                (unit,desired)=>FormationEligible(unit)&&TerrainProjection.TryProject(unit,desired,out var point)?(Vector3?)point:null,out var pitch,separateAir);
             foreach(var item in points)context.Points[item.Key]=item.Value;
+            if(separateAir)
+            {
+                Vector3 axis=end-start;axis.y=0;
+                var aircraft=units.Where(IsFormationAir).ToList();
+                AddAirFormationSlots(aircraft,context.Points,(start+end)*.5f,Vector3.Cross(axis,Vector3.up),context.Settings,context.Scale);
+                // BuildSlots sorted this native list. Preserve that list and its count;
+                // only replace matching indices so native dispatch still orders every unit.
+                for(int i=0;i<units.Count&&i<slotsOut.Count;i++)
+                    if(context.Points.TryGetValue(units[i],out var point))slotsOut[i]=point;
+                if(groundUnits.Count==0)pitch=AirFormationPitch(aircraft);
+            }
             if(pitch>0){spacing=pitch;context.Pitch=pitch;}
         }
         private static void TuningCommand(Player p,string args,string command)

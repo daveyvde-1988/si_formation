@@ -10,10 +10,10 @@ namespace SilicaFormationShared
         internal static float Multiplier(int percent)=>percent<=30?1+percent/15f:3+(percent-30)/10f;
 
         internal static Dictionary<Unit,Vector3> Repack(List<Unit> units,List<Vector3> slots,Vector3 start,Vector3 end,
-            float scale,int influence,Func<Unit,Vector3,Vector3?> project,out float pitch)
+            float scale,int influence,Func<Unit,Vector3,Vector3?> project,out float pitch,bool force=false)
         {
             var points=new Dictionary<Unit,Vector3>();pitch=0;
-            if(influence==100&&Mathf.Abs(scale-1)<.001f)return points;
+            if(!force&&influence==100&&Mathf.Abs(scale-1)<.001f)return points;
             Vector3 centre=(start+end)*.5f,axis=end-start;axis.y=0;
             float length=axis.magnitude;if(length<2)return points;axis.Normalize();
             Vector3 forward=Vector3.Cross(axis,Vector3.up);

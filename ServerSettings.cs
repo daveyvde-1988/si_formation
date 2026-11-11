@@ -56,6 +56,8 @@ namespace Si_Formation
             tuningPreferences["FpsSpacing"].Value=ServerSettings.FpsSpacing;
             tuningPreferences["FpsDistance"].Value=ServerSettings.FpsDistance;
             tuningPreferences["FpsAllowance"].Value=ServerSettings.FpsAllowance;
+            SaveCohesionSettings();
+            SaveTravelCoverSettings();
             try{serverPreferences.SaveToFile(false);return true;}
             catch(Exception e)
             {
