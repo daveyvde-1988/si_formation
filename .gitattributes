@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Preserve PDF bytes across Git checkouts on Windows.
+*.pdf binary

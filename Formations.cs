@@ -1,0 +1,134 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using HarmonyLib;
+using MelonLoader;
+using Silica.AI;
+using SilicaAdminMod;
+using UnityEngine;
+
+[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "3.4.4", "Local")]
+[assembly: MelonGame("Bohemia Interactive", "Silica")]
+[assembly: MelonOptionalDependencies("Admin Mod")]
+namespace Si_Formation
+{
+    public sealed partial class Formations : MelonMod
+    {
+        private sealed class Settings
+        {
+            internal int Spacing=DefaultSpacing, Rally=DefaultRally, SizeInfluence=DefaultSizeInfluence, AlienSpread=DefaultAlienSpread, FpsSpacing=DefaultFpsSpacing, FpsDistance=DefaultFpsDistance, FpsAllowance=DefaultFpsAllowance;
+            internal bool MovementFix=DefaultMovementFix;
+        }
+        private struct MoveState { internal bool Independent; internal LayoutContext Layout; }
+        private const int DefaultSpacing=32, DefaultRally=25, DefaultSizeInfluence=30, DefaultAlienSpread=50, DefaultFpsSpacing=32, DefaultFpsDistance=10, DefaultFpsAllowance=20;
+        private const bool DefaultMovementFix=true;
+        private static readonly Settings ServerSettings=new Settings();
+        private static bool ready;
+        private static bool Active=>ready&&ServerEnabled;
+        private static bool activeIndependent;
+        internal static float Multiplier(int percent)=>SilicaFormationShared.CommanderLineLayout.Multiplier(percent);
+        private static Player Commander(Team team)=>Player.Players.FirstOrDefault(p=>p&&p.Team==team&&p.IsCommander);
+        public override void OnLateInitializeMelon()
+        {
+            try
+            {
+                foreach(string name in new[]{"formation","formationspace","rallyspace","scout","movementfix","sizeinfluence","alienspread","fpsspace","fpsdistance","fpsallowance"})
+                    if(PlayerMethods.FindPlayerCommandFromString(name)!=null||AdminMethods.FindAdminCommandFromString(name)!=null)
+                        throw new InvalidOperationException("Command already registered: "+name+". Remove the old formation mod.");
+                LoadServerSettings();
+                HarmonyInstance.Patch(AccessTools.Method(typeof(StrategyMode),"PerformMoveAttack"),
+                    prefix:new HarmonyMethod(typeof(Formations),nameof(BeginMove)){priority=HarmonyLib.Priority.First},
+                    finalizer:new HarmonyMethod(typeof(Formations),nameof(EndMove)));
+                InstallRally();
+                InstallMovementFix();
+                InstallSpacing();
+                InstallFps();
+                // Shared callback keeps scout as a chat alias of the single player menu entry.
+                PlayerMethods.RegisterPlayerCommand("formation",FormationCommand,true);
+                PlayerMethods.RegisterPlayerCommand("scout",FormationCommand,true);
+                AdminMethods.RegisterAdminCommand("formationspace",SpacingCommand,Power.Generic,"Server commander click/drag spacing, 0..100%.");
+                AdminMethods.RegisterAdminCommand("rallyspace",RallyCommand,Power.Generic,"Server rally spacing, 0..100%.");
+                AdminMethods.RegisterAdminCommand("movementfix",MovementFixCommand,Power.Generic,"Server grouped movement speed fix, on|off|status.");
+                AdminMethods.RegisterAdminCommand("sizeinfluence",(p,a)=>TuningCommand(p,a,"sizeinfluence"),Power.Generic,"Server large-unit influence, 0..100%.");
+                AdminMethods.RegisterAdminCommand("alienspread",(p,a)=>TuningCommand(p,a,"alienspread"),Power.Generic,"Server Alien spacing scale, 0..100%.");
+                AdminMethods.RegisterAdminCommand("fpsspace",(p,a)=>TuningCommand(p,a,"fpsspace"),Power.Generic,"Server FPS spacing, 0..100%.");
+                AdminMethods.RegisterAdminCommand("fpsdistance",(p,a)=>TuningCommand(p,a,"fpsdistance"),Power.Generic,"Server FPS distance scale, 0..100%.");
+                AdminMethods.RegisterAdminCommand("fpsallowance",(p,a)=>TuningCommand(p,a,"fpsallowance"),Power.Generic,"Server FPS movement allowance, 1..100m.");
+                GameEvents.OnGameStarted+=ScoutRoundStarted;
+                GameEvents.OnGameEnded+=ScoutRoundEnded;
+                ready=true;
+                MelonLogger.Msg("Formation tuning ready: click/drag spacing, mixed-unit influence, Alien scaling and reserved 3D rally destinations.");
+            }
+            catch(Exception e){ready=false;HarmonyInstance.UnpatchSelf();MelonLogger.Error(e.ToString());}
+        }
+        private static bool BeginMove(IReadOnlyList<BaseGameObject> objects,Vector3 worldPosition,Target target,AgentMoveSpeed moveSpeed,
+            bool isAttack,bool remote,bool queueOrder,bool useLine,OrderDefinition forcedOrder,ref bool __result,out MoveState __state)
+        {
+            __state=new MoveState{Independent=activeIndependent,Layout=activeLayout};activeIndependent=false;activeLayout=null;
+            if(!Active||!Game.GetIsServer()||objects==null)return true;
+            var first=objects.FirstOrDefault(obj=>obj&&!obj.IsDestroyed);
+            if(!first)return true;
+            var commander=Commander(first.Team);
+            if(commander&&(remote||Player.CurrentPlayer==commander)&&!target&&!isAttack&&!queueOrder&&!forcedOrder)
+            {
+                var settings=ScoutFor(commander);
+                if(settings.ScoutArmed&&settings.ScoutTeam==commander.Team)
+                {
+                    settings.ScoutArmed=false;
+                    if(DispatchScout(commander,objects,moveSpeed,out bool success)){__result=success;return false;}
+                }
+            }
+            if(forcedOrder)return true;
+            var tuning=ServerSettings;
+            activeIndependent=tuning.MovementFix;
+            activeLayout=new LayoutContext{Settings=tuning,Team=first.Team,Scale=Multiplier(tuning.Spacing)*FactionScale(first.Team,tuning)};
+            if(!useLine&&!(tuning.Spacing==0&&tuning.SizeInfluence==100&&FactionScale(first.Team,tuning)==1))
+            {
+                var units=objects.OfType<Unit>().Where(FormationEligible).Distinct().ToList();
+                Vector3 centre=units.Count==0?worldPosition:units.Aggregate(Vector3.zero,(sum,u)=>sum+u.transform.position)/units.Count;
+                activeLayout.Points=GridSlots(units,worldPosition,worldPosition-centre,tuning,activeLayout.Scale,out activeLayout.Pitch);
+            }
+            return true;
+        }
+        private static Exception EndMove(Exception __exception,MoveState __state)
+        {activeIndependent=__state.Independent;activeLayout=__state.Layout;return __exception;}
+        private static void Reply(Player p,string text){if(p)HelperMethods.SendChatMessageToPlayer(p,"Formations: "+text);}
+        private static void SpacingCommand(Player p,string args)=>Set(p,args,false);
+        private static void RallyCommand(Player p,string args)=>Set(p,args,true);
+        private static void Set(Player p,string args,bool rally)
+        {
+            if(!p||!ready||!Game.GetIsServer())return;
+            string text=(args??"").Trim();
+            int split=text.IndexOfAny(new[]{' ','\t'});
+            string value=split<0?"":text.Substring(split).Trim();
+            var s=ServerSettings;string name=rally?"rallyspace":"formationspace";
+            if(value.Length>0&&!value.Equals("status",StringComparison.OrdinalIgnoreCase))
+            {
+                if(!DemandAdmin(p))return;
+                if(!int.TryParse(value,NumberStyles.Integer,CultureInfo.InvariantCulture,out int n)||n<0||n>100)
+                {Reply(p,"/"+name+" <0..100> | status");return;}
+                if(rally)s.Rally=n;else s.Spacing=n;
+                if(!SaveSettings(p))return;
+            }
+            int percent=rally?s.Rally:s.Spacing;
+            Reply(p,(rally?"Rally":"Default formation")+" spacing: "+percent+"% ("+Multiplier(percent).ToString("0.##",CultureInfo.InvariantCulture)+"x vanilla). Applies to new orders/production.");
+        }
+        public override void OnUpdate()
+        {
+            if(!ready||!Game.GetIsServer())return;
+            foreach(var p in Scouts.Keys.Where(p=>!p||!Player.Players.Contains(p)).ToArray())Scouts.Remove(p);
+            foreach(var item in Scouts)if(!item.Key.IsCommander||item.Key.Team!=item.Value.ScoutTeam)item.Value.ScoutArmed=false;
+            if(!ServerEnabled)return;
+            TickRally();
+            TickFps();
+        }
+        public override void OnSceneWasUnloaded(int buildIndex,string sceneName)
+        {ClearRallyState();ClearFpsStates();foreach(var settings in Scouts.Values)settings.ScoutArmed=false;}
+        public override void OnDeinitializeMelon()
+        {
+            ready=false;HarmonyInstance.UnpatchSelf();Scouts.Clear();ClearRallyState();ClearFpsStates();
+            GameEvents.OnGameStarted-=ScoutRoundStarted;GameEvents.OnGameEnded-=ScoutRoundEnded;
+        }
+    }
+}
