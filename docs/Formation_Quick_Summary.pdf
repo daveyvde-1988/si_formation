@@ -1,99 +1,118 @@
 %PDF-1.4
-%âãÏÓ
+%“Œ‹ž ReportLab Generated PDF document (opensource)
 1 0 obj
-<< /Type /Catalog /Pages 2 0 R >>
+<<
+/F1 2 0 R /F2 3 0 R /F3 5 0 R
+>>
 endobj
 2 0 obj
-<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
 endobj
 3 0 obj
-<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 4 0 R /F2 5 0 R /F3 6 0 R >> >> /Contents 7 0 R >>
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
 endobj
 4 0 obj
-<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+<<
+/Contents 11 0 R /MediaBox [ 0 0 595.2756 841.8898 ] /Parent 10 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
 endobj
 5 0 obj
-<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+<<
+/BaseFont /Courier /Encoding /WinAnsiEncoding /Name /F3 /Subtype /Type1 /Type /Font
+>>
 endobj
 6 0 obj
-<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+<<
+/Contents 12 0 R /MediaBox [ 0 0 595.2756 841.8898 ] /Parent 10 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
 endobj
 7 0 obj
-<< /Length 7037 >>
-stream
-BT /F2 21 Tf 0.08 0.24 0.35 rg 1 0 0 1 38.00 800.89 Tm (Si_Formation) Tj ET
-BT /F2 10 Tf 0.18 0.44 0.50 rg 1 0 0 1 191.00 801.89 Tm (QUICK SUMMARY) Tj ET
-BT /F1 8.3 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 774.89 Tm (3.7.0  |  11 November 2026  |  Brief helper; full report to follow) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 757.89 Tm (Si_Formation tunes native commander formations, FPS followers and production rally parking. Recent work adds optional) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 746.24 Tm (ground-group cohesion, separate Human/Alien tuning and an infantry travel-cover switch.) Tj ET
-BT /F2 10.5 Tf 0.08 0.30 0.39 rg 1 0 0 1 38.00 727.59 Tm (Group movement) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 709.58 Tm (Human and Alien Group cohesion switches are independent and OFF by default. Each faction has its own General, Close,) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 697.93 Tm (Medium and Long settings. Distance boundaries and near/far tuning are configurable.) Tj ET
-BT /F2 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 42.00 683.28 Tm (Default move distance) Tj ET
-BT /F2 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 191.00 683.28 Tm (Behavior) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 42.00 668.63 Tm (Close: below 500m) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 191.00 668.63 Tm (A single click turns the remembered formation toward travel, then attempts formation) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 191.00 656.99 Tm (holding and coordinated arrival.) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 42.00 642.34 Tm (Medium: 500-1000m inclusive) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 191.00 642.34 Tm (Arrival pacing without holding the shape during travel; units return to their intended) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 191.00 630.69 Tm (formation at the destination.) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 42.00 616.04 Tm (Long: above 1000m) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 191.00 616.04 Tm (Lighter arrival pacing without formation holding.) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 598.39 Tm (Dragging specifies a new formation and uses arrival pacing. Obstructions or a poor shape can cancel holding while arrival pacing) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 586.75 Tm (continues. Excessive spread, lag, stalls, losses or delay can release coordination entirely, letting units proceed independently.) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 575.10 Tm (This is soft speed control, not rigid movement or guaranteed simultaneous arrival.) Tj ET
-BT /F2 10.5 Tf 0.08 0.30 0.39 rg 1 0 0 1 38.00 556.45 Tm (Formation memory and aircraft) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 538.44 Tm (-) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 48.00 538.44 Tm (Complete unchanged groups reuse their intended destination layout, including when the previous move is unfinished.) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 48.00 526.79 Tm (Temporary detours do not become the remembered shape.) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 513.14 Tm (-) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 48.00 513.14 Tm (Selecting only part of a remembered group, adding units or merging groups creates a fresh formation. The unselected) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 48.00 501.49 Tm (remainder reforms on its next move too.) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 487.84 Tm (-) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 48.00 487.84 Tm (Aircraft use separate centered rear rows and do not occupy ground slots or influence ground-group pacing. Native flight) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 48.00 476.20 Tm (altitude and navigation remain in control.) Tj ET
-BT /F2 10.5 Tf 0.08 0.30 0.39 rg 1 0 0 1 38.00 455.55 Tm (Large or map-wide selections) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 437.53 Tm (If a selection is too dispersed or oversized, eligible selected ground units already within 500m of the destination centre can) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 425.88 Tm (coordinate arrival separately. Distant selected units move independently and do not slow this local group or count toward its) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 414.24 Tm (failures.) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 399.59 Tm (Membership is captured when the order is issued; later arrivals do not join. Each faction's DestinationRadius setting changes the) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 387.94 Tm (radius; 0 disables this fallback. Normal unit limits and cancellation rules still apply.) Tj ET
-BT /F2 10.5 Tf 0.08 0.30 0.39 rg 1 0 0 1 38.00 369.29 Tm (Infantry travel-cover preference) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 351.28 Tm (Travel cover preference disabler is ON by default, under Commander placement. ON skips the native infantry step that redirects) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 339.63 Tm (travel waypoints toward nearby cover; OFF restores it. Combat reactions, cover choices and claims remain native. The shared) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 327.98 Tm (path postprocessor can also affect travel to combat-selected cover. Changes apply to new or recalculated paths, with the) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 316.33 Tm (Formation master enabled.) Tj ET
-BT /F2 10.5 Tf 0.08 0.30 0.39 rg 1 0 0 1 38.00 297.69 Tm (Handy commands) Tj ET
-BT /F3 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 43.00 279.67 Tm (/groupcohesion on                 /aliengroupcohesion on) Tj ET
-BT /F3 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 43.00 268.02 Tm (/cohesion DestinationRadius 500   /aliencohesion DestinationRadius 500) Tj ET
-BT /F3 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 43.00 256.37 Tm (/travelcoverdisabler on           /travelcoverdisabler status) Tj ET
-BT /F3 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 43.00 244.73 Tm (/cohesiondebug next               /cohesiondebug groups) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 230.08 Tm (Changes and debug commands require AdminMod Generic permission; debug next also requires commander role. Settings are) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 218.43 Tm (shared by the server and available through the existing mod menu and UserData/cfg/Formation/si_formation_native.cfg.) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 203.78 Tm (Status: The 3.7.0 Release build passed with zero warnings and errors. The candidate was staged, not installed or) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 192.13 Tm (gameplay-tested during this work. Live behavior remains to be verified. See Group_Cohesion.md and Changes_3.7.0.md for) Tj ET
-BT /F1 9.1 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 180.49 Tm (details.) Tj ET
-0.75 0.81 0.84 RG 0.5 w 38 30 m 557.28 30 l S
-BT /F1 7.5 Tf 0.18 0.22 0.27 rg 1 0 0 1 38.00 19.00 Tm (Si_Formation 3.7.0  |  Summary snapshot - see repository docs for full settings) Tj ET
-BT /F1 7.5 Tf 0.18 0.22 0.27 rg 1 0 0 1 535.28 19.00 Tm (1 / 1) Tj ET
-endstream
+<<
+/Contents 13 0 R /MediaBox [ 0 0 595.2756 841.8898 ] /Parent 10 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
 endobj
 8 0 obj
-<< /Title (Si_Formation 3.7.0 - Quick Summary) /Subject (Brief feature and configuration helper) /Author (Si_Formation) >>
+<<
+/PageMode /UseNone /Pages 10 0 R /Type /Catalog
+>>
+endobj
+9 0 obj
+<<
+/Author (Si_Formation) /CreationDate (D:20261112100910+01'00') /Creator (\(unspecified\)) /Keywords () /ModDate (D:20261112100910+01'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (Behavior, parameters, diagnostics and user feedback) /Title (Si_Formation 3.8.1 - Group cohesion quick guide) /Trapped /False
+>>
+endobj
+10 0 obj
+<<
+/Count 3 /Kids [ 4 0 R 6 0 R 7 0 R ] /Type /Pages
+>>
+endobj
+11 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 2749
+>>
+stream
+Gatm<flGh:(4Fe9gm>!;;A+qR"QLjWZ'(MI]L8419<+jm5a,k#5U28CBY*d)F)GJ284g0NUQR3p#kVEJ4a64BI/F-8G?,<(ImYll!X_9*=]5lY1#;aoYA__!j_Ea-;tA?r$DJh1(Z@,EkdR20]S*_+2+8r_!EG@09.sNs$i[3&la&n:P!uK%p!Rprl).sS7-''ldSEp)7H#_N@^G#L_-e+uVSN>3<]F1.q6g(FPr=o39%QI\&Og$k"dFj)=1PQ`I0V3>oUW($V4l6H(Z3Ta#J0_s[2t28<_hj?,;Q;T;,Z.KPqY;2Uifb)Pj-m??+'n+A7R,X/#fqnG503N;Dm,oi^onLAMjt[3bog<QR%\0/7@2)1mkuMkLoW2*7Jqjo_rG;*]slYT4/T4i[U`X@\CUb_gDI99](3p*9rJ!F.GT:"Npso0iWqTaf5r_A"A`@BFSY:/KA=GVtPP:ZB)BW<%\45`osQ+QA'-8C5f"%P@g/>h1Y8hj20H,k/OP$&:!+TF"r!VXDi*D6R)lQ;E!n!dPr2+=nC5ocJ1A"5;MFoBSG;XN):-O]?;m@eaJ3rN_#G\_'""9NQ!)$%+Q0@#h-iQ363G/J*:(j+sb6\3X6-tM(lZbNS%'+MG.'V[MO&Ym[D_</G0d^[#N.+]l?>TN6]&ZaYKSAGLQoi&J%$Ng[M\n01U`D]CUjlRFW]d2'UGZ=!4TF'l;P=WoX)`6Ii.AYGaO>O#sah<aW)A[t([.cp'VF>+#K64(g,i.U.t:V6r9I!IK8G9+?/I45=%S5ff;!&XA$I3u8%"[<3Z.10lRNK0\m9GiIY2aJ?ken[%'n-dYn`O!cB>XB%-+50/J@!]*k>6m_'c5R*#3.gCNo?FFo7FoKj@EPpg.kW-%TAMZFg$>(n0M-kBIZ!=G#=5*OLhd0UE'BRVWOVP5=4i[oWP-1W3+fareC3$IRSEijD@0S%0@*f(ZNNVKO1n$d\:YW)4PH)4Z2c4MSI1Q<::OM''k]So=qo:W:h%Xm''blhNFp:,cB5Qh1\h/GuC>2MG01e")"NL$8&8ncajL!-Xp1NAi,sKJcYB2))C9:@$7BVIVZJ[#(P%<E1rkH8K3+*%7W']NsIlS7tW6`96V74@,m1aiB/>q<c]DF-Ds*OcsWe-=b!(4W6as&kFHiLJs=)'4M2d4aTneCIZG!f0:`$[%;foVs;:8n]VYd:0WM)(93$W4[ujgfUMJQL!)7]\2'FuZOK?$;B:*:+a2"/1&G\b^I^p"3Ws;h!g5X$o;1.U%QuJkq.S1;;lQEC`[*l:7Yn0L.=Bb50jKhoY3MJfDQ(^/>KjdU(l6?R@c+eFN&[a3'"mbK10IlMnc;hW(]Jk@5(#c_g=V[H7>4kuJRuieS<66ST=-p8CgFZN]donQ4HWgp?#UXlU>:"t:Wq`f@7>Vu)I13IFNZ2<GlrPfBX`;=7X0\-ZoE<$84sDE*n#69$tb)qIr;cF=@NX[Wqh\Z7Q(+W?HT1I,b#X>T!4QB)]&6-J1(nDcKs9'2"0EFdF1,a6dM+Sdhk+(pTGc@%=K"bt=2db5JucD,m"3<E1?k*$Ys1-W9-;W_5toJfM1C\"Ps6,3dHUSlFGO5p$3';CLrl<;D'pmsq1PqZ-sEE=W6h\"2o<2rZ$-TM"'GC_O6fJ]EtX5n1Ico$#?b^KO(;"jk_'N3TA^:ndG2u\07e$.iT:d#32hIt%c&;)8R"=R<+!+@(N`GN^F$q&,nUnR=C]MG9lUEOVimml!I$+RqgSa5Zqi;F>h5@D0"Gl]1/_(.H.d8]+j>J(binV.^N&!O&B?g5>`mFt9\^V(?93dO\]h(_IVkqF!8Vp!!,mVb;5&!QeXU&01a(e+$dphP98cbK51fC'gHS,UnrNug`Jkc7au;bPCHZV!k!3+`G)OE/6rJbF]s!Y%]N#\9ngbHrp"?`E0>FfZMY#Wg\7A<2u\H%]e\g.StGZ,Rt8bXV.eLIc?@.F\m0/k06'0mF@sS];R@:/Z.+g,Z0AJJL_Jc:TWA4E@hG:_$uUQ^\k)1/V4$gL6?/`T=POTtGNm@_AoVZ\>IKpaCL\8c245K*)`Vcar]H-qf7Ha3A,ZE.]7fosQ?Z`@6/N2#SnU`;[KP*#%CM%5J21k*o7P/.4fq#+iE4%.%@O?:4,H#8VmGc?RoFG@a"a?967qLOBO89-D36X)rj>/Y#p"Vl1$QB7Hj3<!*FI'2FOn&m/pR[OWl?]O*:90,?\?@YVb^_m;)`mV:*N[=ugXqNY/e[oKc__&o_e_W8c/!ki_J!p]HUDN)_nHa!5t5:"4M"Boh0XLMC96hW1%Wu]hqn1o.E'faI][59[']%\;dL.plN@bB$Z$8/u"DCQ%<2&>e\?QaW3caX7%c..P33Q^#0$D3;*YMf>ekGJ^6@4rI,dMEWCRFN@l_)kcWSTjKIYB'b6Jo<40<edkn;p*9aI:fR8`iA=T,0NQ]nPV"$XC!CM3q'H6CY;^T*Ih^p>_hH!N2^2S1E(q(oab,A[I%3MpEe(HPOCZTIeKYB;N8M'cIh%6kl0-9n\ton,QJbdB*pt(WD>:aS.<(.2V&ta[\4%L]k[<\#GlXQKlqd03_4;WU#Q^nF#K)'Xt8SBL9CD^A_\D''>P,"]*eq.51]Ur3'=ke^Z0,4"^I+--0r/JmQ930d_Y55>XaunpCSKWrR):,n8#OCC'HPS@6[4h^38++r%;TDIH;="Kh%nP+PN]q`p8mO`@YPdL7'5Q!;l)o9>7n"<UuF'0oU5J?hm"42u~>endstream
+endobj
+12 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 3020
+>>
+stream
+Gatm=D/\1M&cV3*0jfgL#E.`VUo$*oFl'8qdU(oW5`6ggM^rKTP,hfM<da+lmk_R$79MD5gaS8YBU:e:4"npm0H_H%Jc0di&H29j/mebrKQOo'+SK9UIS2>tcb/L)oqsV:AoSMQ;gbJ$1f!8PlSC2fm9*$.N1th08s6.i:6UpWjn/)EV)W$a9:C.4=\$o4Ki&JF(WKB<R?JG@o,*G2MU)F-?m%N=;Oj39>X@Npe`U#f'V\X>,l/T[jNY>f(8B#P->I8H5io\nQ,S_>'`)87-bB:Df0:t@IF>se')e^?Mcq]#:/t4,_VEOlQ;*t"6C5+-GsriO7cmTJP,_^8%@2qu<DpMrf\,I\eJ\ZK]r6st99R@(;M`mZ%0qsmEn3Aga#$L(GMbi?NMibtVjN<I^'Z<J=OH)leU2i%PcA!I*c"nE@fr#]j(G!$S.=3VE=bfBnmZPK_3VXLG5'ZZ?HY=$\X-L'M&^0lV%SJmA!B\2NEY\u.DMj^VFk`ZJ^*aI>&$ECRR366e^&:_bK:b=2[k1g\=kkMoFqGt)scTdhY0nbbPN$(_R:=M']hZE/@1=:AR1:PPKnP/)N$?F6eDfs3F8FI6"\d9'k^5VKF"D\PX8Pbd'(m]8MA7R_`u?2R?c2`nkOR278nRFj[sjknlEU82aSBAB._@tkKn0:\LKm&^[pZQWn3o5pqC*W2``T3OUGuYfI8jNe5SEO5$fY8"k$&,@^3@(4F0c5#%KHgf:neBAGXbE/u6&^Ki6BoWG9-,fX^&Ha]ho2>1tK,[?9PX!\-B4o&WBT+:e+p550\T)NZn=VI>YGe!^<K03RCN9M$p^kVNSJBH(Pirc%"(HHnhmrHr7<(8uBb;aM&TfMcYR9fltimTGuECZ6i\#nL>o8>[cpog19"PLg?9$3<\qiq3d6aahjO%R:_J">?^o^^"T`e*gli*&8U(_RO2R_JV#YNb]@IoZ::UZf+9QY&*Gu\sV/Z;m$I-5GMGFX,MX%i:ESXUS#\_6*aruW1"(`eO=I"I286ckf/kXNX`sYV\[&U@dodb.[*Q5OWu!=,*PGCd,PL:eZ,torI`0jo.\Iqm7tPTH-CBH/3&XR:p$t42UYP[]0oY..eTjdOSj,8(=`TH;O`VF+A(Xu>BVrFgN[UIFAlebiK2B$5U0nI7ceHa]?Ue3k65gVIfhj%\%'P^q15M<OlnZ4nTE?]WIFsYIr(8&-F6A1^&mB9c$L)c!BBqIT8]7!St3m>c](fKrF@,g2W2_(!XI+u_7&jsNEWFr=>$,B7XAAKP@:<=H^8kTHHVg_o,1]pgWk+c\V*nCW3,G'CL&*)G3-iE8V?(\=+-k8Cu;P3\APF=Xc2iC6rk?fnL<q?B3STF6L/;)fLE=$5dY,mX=+m/\uD`?k2-nYg/u]jnV$Jb_Do*YhOsDC.<H"AGfH'3Xod,b$KbND&f5Wo]uigolVVnuKr;KZ4&p<-rO@tF]4^cpemh1Aa!\+%n%%)BO2prNGVZJ`@:jHN(AQTaY37T!,e,+,g3+'B(o=I!^VHoNl:I\31Du'g@9D)N$cp#a(m#6t?t6_GXb#OG3<C;5Jh&Pu<4UjtH<Y^fhGL[eZ?%2]]^Q2\2Y@9$&Cl_"6hKHjj9\ZW8X5D(ShKHt4m!1Cr&<,p8)+-j&0qcf%."?L\p;RNcH(0+*E_cNDX(:E]bP.eZYV8[p1XaB'q>Ge;m.iB2S(_I)*qVD?&mYm85Gs6eAs9g!3/c:h:K]rnk$>]^(&ph%+]G[C7:14JGM!W\>hXs,e@]qQ)k4E;TMmcq/%\pi>g4cV4;:_@%GE@R-/s@+1oU8M&oYTEcGE"]&=:(U9.6L,PR21e*)9@7fsfJ"fu#K.45lG3nGOXg^8j]bijPon!>g`RITX!]Tf=2pdA%"cgAq.[50c*3bF=(G($Jsi5(mAF3<uadl9Wh4IaAW0XI[pUc\"jmiAkFI%7ZuBtD(H(AdDX]!lMmqJGleqqH:fgJ65V*klb9;)I(D[r0)*Y5<D<k9D2P5O(`?pU6g\m(8!/_&t\l+4>8-c34Xb+5?R65t+5[;m%&=b5q/oE@W/K@jY(ND,CK-d)2Ve(3T5P+d?.c]?Y8SS8s%Lo]XGW>Unplm.Tq`MJ&-`D%EYSg;)Cr@0"a.%I2*=Yi)s#CD793aW*B^-#Ol"D<H\L,FBmiVpsTaLjSql'Ur?JQ+Ih-dLDi&\Ph&RNli"Da/;F_DOh@EG!-<Zs!hg?/Cn(Yom3[n$/(27EYlsugr`7/[qb.OlR-,hY4gYr0500BPbTUeS1C,5\.W:QMEI;F.rk#RK(GG%,oi#6G!J3d@/Vmfmd8s)n/MiJ*]`K4S,U]<[;bB+N9#ia6^@;L)tcG%AXBLLk_B2pnGH1%q`EGCmA.%o8)&pc1;=cNhJf'VFGalb!(;eqX)@]hOK+;*?=s&mT`YZ9qtn5m!`+(=6$VDZHi%PGRs"de>#VVt`!TD9.Ucl_ekUEdgHoSP*KM`dU@1S&>D_c'8?BYj5&?7cGas[u?!F@SoXs&8lAGr&hs?k<nZh2p@CT\i8H-C]m9#"cSbGuF\H0!IY+3)-@d(ha1*!,D_\Q$(+=S:tAj0/Xg#"='D6UNY29P!_8p=R-F2k=3JW:gK1rpt(X:!BpLM(CRIcrChn&=8o'_/+7(dkFc\Mi="m<l2Yd5_IYYnF&VpVkKDW@r]eQ[u3\Rdlp*!8NUoAro34S"6<;*B,L<IWjE*!$gjRT)JC]#:OY4aM&E.3E4)*_1g]ID3kn8geir*1:ft/qbcWc>]KL<3n'Z"fWCC_XoeOkW.:EspBV.mnb5q2FssVBlZaf_NsiKI[8DN;^Nt=h]!-s8+_l#-=KX:RpSX@CqV3=^B,;7'SiFq4K:]E8.t5fi^u@Sr2m],^a84[<3T,>_/eBM3m,[tmdac^YkH2JthJ;UW"c1V0,1]c.Q]al=a>:EMFX8]ua\4S2j]c#nL:%iEh+DSBriQ6'N%7tFIcXCK)3(5#aO9O!7^$B;08n,i:mL\ZG&4=`i26cZf4:qfK,0!_rXYW5:bi~>endstream
+endobj
+13 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 3259
+>>
+stream
+Gatm=gN)&i&Ui84oNRQE"9BX]Mk*J*f8=CB]O"$iT3Xfl5gB_P?tTJegrd\#oF(__VG,IH.]F\VQqLd]GFrbB']LK\J('SEQNt+5M("8G+fAunN9T:GrVPP)R*I)<F@O)_4GlU,r1CpVEC+m<c@U`#B,-D<1lA6-,ael,1n!jFK'psr';p4W::"=dl]2HenL,8P&<E_t18eLocc<QJ/9t%@$&2r&d0.)DfN6Ms^%ucE9dq!W/#*%UNIk:E;(AS>AYP=T1S"#-5KRph%E2a<q)^b;:(RB_>PF2=k3gT#,LT&XU*/3VV(`k"UqA8d8p/Z$?!+u6A7Qj;Q"1i][.q^5;AD&>M'o^>WmTIdl-qnH?':.uBEHSm91M(er]'4FNQ3lH,[TB8`.QO_'[i?Z]t0%L*jMF!.@^/2?KAEF>Yq<9ZI0L\H<kP?Z\:plG@^J%IeMk?:NkgO]5/1kl_4tu_X<s"'>?>[`_eR`:b[XJ0na,+iGl2W-uE7*e#7"Q$b6mG8fK,b)_c,gO]A`1UQb$ADuQB*6C"RU7tlr_?))gLNdX(M@,@A)M?"k+H=s``;OGFXQ:A?kANpPP7=D^I)#sXZU^Y%K!_k#jI=^Nh$n(&$"))f?^G)%$=kK1gLJa#_@UZDc4BFPehhb#-I&X'6ejqcaEqNFE5jA]rV=dHdW0ss!1fe3i#QnSeT5Fh*%=9V(@r3a&JDN-$OD_""CQaBTW^Y=9-aR-kb:j3s8N90>Y3DH.JlCA1%\^2IAl0BoZ44H=CXoN_R.,^mgqCn>)Ggc:)]@!)5-J@+4JG&D;5ek0D,$"5488mGpOKC]@LhmHQhFmB:7P!VV&Pr^85lMq+UPEH4;8"6EhNi-$+dTGF5c%X!*oSr1$V=QYe0kKCK7W-0M\<%&Tm__/_eo2VHTdS?<0t59eXPtOek].1:o*U##Ap/M[V+gU\G[%?PK`ZEl)lPU_-60Sdr4^59:Ob9S1Yf!&^A,iHKfue(]3qdmm&H!?^In6\TJdHLD5WFfOAQbSeia^IN?7-'W@TEaER8B`NsS'Eo7)OedPs5u0$N>YlC<Ub%P`H>+OhcsE!6bkSVUirRd/P4;Xp]n".3/lAE]iIoWZ.Od<f`#i\p33HE;$c!X3)FuA.<u"[<`"nh.!`kSi/TeD=3`]ELK/S.rn\R9L*lUK%M1-p]*-9#Ig9QGe(R-+o(+bc0KqdLlN@^3IKi,enjURt^AXl6J"(VpBE&DEaWd(M`[9]aM\Y=Gk3>tOe-tR=3<Yj7(CgdL=Bp2u1b$cm7lsh-BK!TG=!;Zh:?;&rDJnbDu+778="_8;n5U9a\^@l#-l5f=g[R3(+l`-.g&E&c1dlHG?KTATPapnh?lPS0+M3j)fMnh6NEP%8nCE1$$n@m#9"E9^TgRECkdbu4O9uP@L17jMMU3H&en-t/7*Yph.Gn+/&mLh:=Wrg#<=q8?-ALkXDaMRCGQD(l4DW(.;l^.i=b0ALd:C)Hd,m8-g'3F$p#GnU"fN5aACkYWQo?T;Gr!sMt1WO)EN"VcFG=4X0T^JTB^3e-:ml2uIkbJXuXf;6pa[tgU"$1mZI+%j%LiOf!qjK#Z`CX1'ZKi8\E%N$bRQC^$!F(?6T!R1Rd7XJmqYCIHUQb-C<IFc3b'0@L:0b!F[_-L;O.AiZSn*gB']mL)LuQm,>g#RJ*,tD+:E?5@h9%?r%jQUU%nU.E&e\&IaMUq].Bq5tpe9hE/K,ST4,H@WCHI')X9;=>KOs?K%'u^4(bQf27WA$0Wd&Z=*02S6,D!QUm:q?Y>D#%t/oWqcAEeqT%)ls^>XWr_bW7*m9g%HH]O.c?@cFp'1NIW]KrP_\P,SsOj"V]HoD)0:L1A_V&:i:iC=+rDO(X$mABRP-h%Zj9ehRhm)cCo"?@,U!,c/0+E(p=<A!\TU*3KF#V.AQjmSL*WNb(^&#.KgX6QNc(aoOJ,,F1KBiSt\IGNE/uY])R&f[gZbQ%kLp'f/RcZE2>(gU43P'),QmZUK]O2%deM!igA=fWcM6Kul/XMlktue8j`gg\hj-56Zbkb[7/E[N]'nJZb#i$I@9h>8hP6Cl@AVX1=Q;\0:bRTth'-aKJFg;3!9P*O<(_J]kLmP[Al6Mq0pH3B"AX2R).;#`k/0HYm??Bsna,r^"NW5qKlKk$[/<#6?0[SiP":ICRaET84M'kcM$^HpCI^!rC9*I8mB@bL(UNTKY=ff4%[R=(q<&jP70O\@cMr4riUJl`30Tl$-aS[kT8PAErriAWA*:l1rHJ(Sa3X6Ws(Y7e]f"hm$DuI*,=7ki)B@"hRH0g<-EC52Ih#+uO$m:gi)XL>*]['$RktR(&%Xa8>8d`XsH?SRiU'h1DbKO#qQM]I5N"SE%kXEHU2AW41U7ZU.(O?ug::Rc=1#^OAR,5KA9gZ+L%Y%0-rUdT(nZ/cR5h"lgE1=)_@?REOXd1l,N&o&7`oo%u/6V^)\gUCtct626W.%q6O(5E[+E!`j\p1Nf-@4SgQ'odKOnalp^J[st_+730''R14@iq^A!%M"PS,5.OD_^saO"LUh"[kAa+\B3>J3B>61P54*-18B&"0@,!Uis3o<oPja.Js)j^S3Rr/$lrtcS-!GRH#YnIb"XmZMQV/YCC9ZTX>IulL^$#'^W&i68`C\I?)P2:4bR_4sok'<,@#eQnP\M7=3F_g<04_mqXGo#;B3!71DVLI&$tTdr)DpEJ?<TjfYe=%[[@KoroVn=XJ:)o@SjP3RMT^G4G`a5BDUS7;)Pq,.\*VCA;GgdQ2Qhk/cr`C?kSDn9$jpQ^qgo&%*EPQNl"N]?X"uco0cN/ic*R;sd9\fWW#r6tBK"V+VnZ>15$OW(FOP/@(t;*A6R#=nghd"h5iYEISP!6aBXn#fiL>,emM?^mYRp8roASq?p`.J^.EF?G3/C.)8-b"&ppm8S_(/ieN8p:kWMJR#rT)C&9&1n2^qfDhBZ8eV2udEDW`6PC1'o]ROR'q-R5Y32F<-NPHA]^SM.LIRh6I$F)'l[\4t4#h6piuMe<X8s/gT#@)oLb[^ZZqaTZ)V4%Ku+jAR"VHEc-WuLGu"FQ@$]m;_3Z0$/E*0,N:B>+U@U,*4=sYSbm]sEC`R@pCMj&e"7hgrnAra\lXZ9]^'07McLR\,B<\7oM90XltL^S@]uR^Xr4hMplQ(k\iFB-Gn&$7@.?fcF:&p9*32H&A,X[?QX%FAk565Id4]E"W!"E:oo#$LLUqn&DuFM?MmjHTGiQOnCLk#VgfJ4()1]*heGJQ9X4#]$!Rf+QIK~>endstream
 endobj
 xref
-0 9
+0 14
 0000000000 65535 f 
-0000000015 00000 n 
-0000000064 00000 n 
-0000000121 00000 n 
-0000000273 00000 n 
-0000000343 00000 n 
-0000000418 00000 n 
-0000000486 00000 n 
-0000007575 00000 n 
+0000000061 00000 n 
+0000000112 00000 n 
+0000000219 00000 n 
+0000000331 00000 n 
+0000000536 00000 n 
+0000000641 00000 n 
+0000000846 00000 n 
+0000001051 00000 n 
+0000001120 00000 n 
+0000001469 00000 n 
+0000001541 00000 n 
+0000004382 00000 n 
+0000007494 00000 n 
 trailer
-<< /Size 9 /Root 1 0 R /Info 8 0 R >>
+<<
+/ID 
+[<b7d11e6e59c86533ec5845ab082169e2><b7d11e6e59c86533ec5845ab082169e2>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 9 0 R
+/Root 8 0 R
+/Size 14
+>>
 startxref
-7713
+10845
 %%EOF

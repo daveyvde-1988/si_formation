@@ -8,7 +8,7 @@ using Silica.AI;
 using SilicaAdminMod;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "3.7.0", "Local")]
+[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "3.8.1", "Local")]
 [assembly: MelonGame("Bohemia Interactive", "Silica")]
 [assembly: MelonOptionalDependencies("Admin Mod")]
 namespace Si_Formation
@@ -20,7 +20,7 @@ namespace Si_Formation
             internal int Spacing=DefaultSpacing, Rally=DefaultRally, SizeInfluence=DefaultSizeInfluence, AlienSpread=DefaultAlienSpread, FpsSpacing=DefaultFpsSpacing, FpsDistance=DefaultFpsDistance, FpsAllowance=DefaultFpsAllowance;
             internal bool MovementFix=DefaultMovementFix;
         }
-        private struct MoveState { internal bool Independent; internal LayoutContext Layout; internal CohesionDispatch Cohesion; }
+        private struct MoveState { internal bool Independent; internal LayoutContext Layout; internal CohesionDispatch Cohesion; internal MovementCommandDiagnostics Diagnostics; }
         private const int DefaultSpacing=32, DefaultRally=25, DefaultSizeInfluence=30, DefaultAlienSpread=50, DefaultFpsSpacing=32, DefaultFpsDistance=10, DefaultFpsAllowance=20;
         private const bool DefaultMovementFix=true;
         private static readonly Settings ServerSettings=new Settings();
@@ -47,6 +47,7 @@ namespace Si_Formation
                 InstallSpacing();
                 InstallFps();
                 InstallCohesion();
+                InstallMovementDiagnostics();
                 InstallTravelCover();
                 RegisterCohesionCommands();
                 // Shared callback keeps scout as a chat alias of the single player menu entry.
@@ -83,18 +84,20 @@ namespace Si_Formation
         private static bool BeginMove(IReadOnlyList<BaseGameObject> objects,Vector3 worldPosition,Target target,AgentMoveSpeed moveSpeed,
             bool isAttack,bool remote,bool queueOrder,bool useLine,Vector3 lineEnd,OrderDefinition forcedOrder,ref bool __result,out MoveState __state)
         {
-            __state=new MoveState{Independent=activeIndependent,Layout=activeLayout,Cohesion=activeCohesion};activeIndependent=false;activeLayout=null;activeCohesion=null;
+            __state=new MoveState{Independent=activeIndependent,Layout=activeLayout,Cohesion=activeCohesion,Diagnostics=activeMovementDiagnostics};
+            activeIndependent=false;activeLayout=null;activeCohesion=null;activeMovementDiagnostics=null;
             if(!Active||!Game.GetIsServer()||objects==null)return true;
             var first=objects.FirstOrDefault(obj=>obj&&!obj.IsDestroyed);
             if(!first)return true;
             var commander=Commander(first.Team);
+            activeMovementDiagnostics=BeginMovementDiagnostics(objects,commander,worldPosition,lineEnd,moveSpeed,isAttack,queueOrder,useLine,forcedOrder!=null,__state.Diagnostics);
             if(commander&&(remote||Player.CurrentPlayer==commander)&&!target&&!isAttack&&!queueOrder&&!forcedOrder)
             {
                 var settings=ScoutFor(commander);
                 if(settings.ScoutArmed&&settings.ScoutTeam==commander.Team)
                 {
                     settings.ScoutArmed=false;
-                    if(DispatchScout(commander,objects,moveSpeed,out bool success)){__result=success;return false;}
+                    if(DispatchScout(commander,objects,worldPosition,moveSpeed,out bool success)){__result=success;return false;}
                 }
             }
             if(forcedOrder)return true;
@@ -125,7 +128,11 @@ namespace Si_Formation
         {
             try{if(__exception==null)FinishCohesion(activeCohesion);}
             catch(Exception e){MelonLogger.Warning("Cohesion dispatch released: "+e);}
-            finally{activeIndependent=__state.Independent;activeLayout=__state.Layout;activeCohesion=__state.Cohesion;}
+            finally
+            {
+                FinishMovementDiagnostics(activeMovementDiagnostics,activeCohesion,__exception);
+                activeIndependent=__state.Independent;activeLayout=__state.Layout;activeCohesion=__state.Cohesion;activeMovementDiagnostics=__state.Diagnostics;
+            }
             return __exception;
         }
         private static void Reply(Player p,string text){if(p)HelperMethods.SendChatMessageToPlayer(p,"Formations: "+text);}
@@ -160,10 +167,10 @@ namespace Si_Formation
             TickCohesion();
         }
         public override void OnSceneWasUnloaded(int buildIndex,string sceneName)
-        {ClearCohesionState("scene unload");CohesionGroups.Clear();ClearRallyState();ClearFpsStates();foreach(var settings in Scouts.Values)settings.ScoutArmed=false;}
+        {ClearMovementDiagnostics();ClearCohesionState("scene unload");CohesionGroups.Clear();ClearRallyState();ClearFpsStates();foreach(var settings in Scouts.Values)settings.ScoutArmed=false;}
         public override void OnDeinitializeMelon()
         {
-            ready=false;ClearCohesionState("mod unload");CohesionGroups.Clear();RemoveFormationPatches();Scouts.Clear();ClearRallyState();ClearFpsStates();
+            ready=false;ClearMovementDiagnostics();ClearCohesionState("mod unload");CohesionGroups.Clear();RemoveFormationPatches();Scouts.Clear();ClearRallyState();ClearFpsStates();
             GameEvents.OnGameStarted-=ScoutRoundStarted;GameEvents.OnGameEnded-=ScoutRoundEnded;
         }
     }

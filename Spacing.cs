@@ -18,7 +18,7 @@ namespace Si_Formation
             internal Dictionary<Unit,Vector3> Points=new Dictionary<Unit,Vector3>();
         }
         private static LayoutContext activeLayout;
-        private static bool FormationEligible(Unit u)=>u&&!u.IsDestroyed&&u.AIControlled&&!u.PlayerControlled&&!u.ControlledBy&&!u.InCompartment&&!(u.Driver&&u.Driver.ControlledBy)&&u.CanMove&&u.OrderAgent&&u.AIAgent&&u.AIAgent.AgentPathfinding;
+        private static bool FormationEligible(Unit u)=>u&&!u.IsDestroyed&&u.AIControlled&&!u.PlayerControlled&&!u.ControlledBy&&!u.InCompartment&&!(u.Driver&&u.Driver.ControlledBy)&&u.CanMove&&u.OrderAgent&&u.AIAgent&&u.AIAgent.AgentPathfinding&&u.AIAgent.AgentPathfinding.PathfindingSeeker;
         private static float Radius(Unit u)=>Mathf.Max(.5f,u.PhysicalRadius);
         private static float FactionScale(Team team,Settings settings)=>team&&(team.name=="Team_Alien"||team.TeamShortName=="Alien")?settings.AlienSpread/100f:1;
         private static float Pitch(Unit unit,float largest,Settings settings,float scale)
@@ -86,8 +86,8 @@ namespace Si_Formation
                     activeCohesion.Anchor=start;
                     Vector3 heading=start-activeCohesion.Origin;heading.y=0;
                     activeCohesion.Heading=heading.sqrMagnitude<.001f?Vector3.forward:heading.normalized;
+                    activeCohesion.Drag=false;activeCohesion.Reform=true;activeCohesion.Turned=false;
                 }
-                if(!separateAir)return;
                 var eligible=units.Where(FormationEligible).ToList();
                 if(eligible.Count==0)return;
                 var ground=eligible.Where(unit=>!IsFormationAir(unit)).ToList();

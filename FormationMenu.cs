@@ -9,7 +9,7 @@ namespace Si_Formation
     public sealed partial class Formations
     {
         private const string SwitchGroup="General", DefaultGroup="Commander placement", AdvancedGroup="General", FpsGroup="FPS squads", RallyGroup="Rally", DiagnosticsGroup="Diagnostics";
-        private const string AdvancedDescription="Human and Alien cohesion have independent switches, range boundaries and travel/health settings. Profile values interpolate between range endpoints. Dispersed selections can coordinate members already within the destination arrival radius. Use /cohesion for humans, /aliencohesion for aliens, and /cohesiondebug next to trace your next grouped move.";
+        private const string AdvancedDescription="Human and Alien cohesion each use one distance profile with 12 controls. Near/Far values interpolate from zero distance to MaximumRange (default 5000m); longer moves have no custom pacing or holding. Arrival pacing and remembered-formation holding have separate strength controls. Legacy Close/Medium/Long settings are ignored. Use /cohesion, /aliencohesion and /cohesiondebug next.";
 
         private static void FormationCommand(Player p,string args)
         {
@@ -49,7 +49,7 @@ namespace Si_Formation
         // handlers supply their own values/formatting; no layout or preference is created.
         private static void FormationStatus(Player p)
         {
-            Reply(p,"Si_Formation 3.7.0; server-wide configuration; enabled "+(ServerEnabled?"ON":"OFF")+"; effective "+(Active?"ON":"OFF")+".");
+            Reply(p,"Si_Formation 3.8.1; server-wide configuration; enabled "+(ServerEnabled?"ON":"OFF")+"; effective "+(Active?"ON":"OFF")+".");
             SpacingCommand(p,"/formationspace status");
             RallyCommand(p,"/rallyspace status");
             foreach(string command in new[]{"sizeinfluence","alienspread","fpsspace","fpsdistance","fpsallowance"})
@@ -84,7 +84,12 @@ namespace Si_Formation
             AddSlider(commands,"rallyspace","Rally spacing",ServerSettings.Rally,DefaultRally,"Commander formations: parking spacing for newly produced units; physical clearance is retained.",group:RallyGroup);
             AddCohesionMenu(commands);
             AddCohesionDiagnostics(commands);
-            return new JObject{["schema"]=2,["commands"]=commands}.ToString(Formatting.None);
+            // The original Si_ModUI_Server 1.4.4 drops command ui fields. Its data
+            // passthrough retains these generic presentation hints for newer clients.
+            // Commands/values/permissions still come from its authenticated command list.
+            var presentation=new JArray(commands.OfType<JObject>().Select(row=>new JObject
+                {["t"]=row["t"].DeepClone(),["ui"]=row["ui"].DeepClone()}));
+            return new JObject{["schema"]=2,["commands"]=commands,["controlPresentation"]=presentation}.ToString(Formatting.None);
         }
 
         // No player values or personalControls declaration: configuration belongs to the server.
