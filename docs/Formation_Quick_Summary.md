@@ -1,7 +1,9 @@
 # Si_Formation
 Quick guide - group cohesion and everyday controls
 
-Version 3.8.1 candidate | 12 November 2026
+Version 3.8.2 candidate | 12 November 2026
+
+Version 3.8.2 makes the saved tuning the built-in defaults. The 3.8.1 movement behavior is retained; existing saved settings still take precedence.
 
 ## What the mod does
 
@@ -9,7 +11,7 @@ Si_Formation adjusts commander click/drag placement, FPS follower spacing and pr
 
 ## How group cohesion works
 
-Human and Alien **Group cohesion** switches are independent and default **OFF**. Each faction has one continuous distance profile, from zero to **MaximumRange** (5000m by default). The command captures its tuning when issued; approaching the destination does not make the rules stricter again.
+Human and Alien **Group cohesion** switches are independent and default **ON**. Each faction has one continuous distance profile, from zero to **MaximumRange** (5000m by default). The command captures its tuning when issued; approaching the destination does not make the rules stricter again.
 
 Distance is measured horizontally from the admitted ground group's centre to the clicked destination or drag midpoint. Queued moves estimate their origin from predecessor Move destinations. Aircraft do not influence ground distance or pacing.
 
@@ -17,7 +19,7 @@ Distance is measured horizontally from the admitted ground group's centre to the
 | --- | --- |
 | A few metres | Strong arrival coordination. An intact remembered drag formation can also hold its shape during travel. |
 | Intermediate distances | Holding and arrival influence fade smoothly. Units have increasing freedom to navigate independently. |
-| Exactly 5000m | Far settings apply: very light arrival pacing, no holding and a 95% minimum speed fraction. |
+| Exactly 5000m | Far settings apply: Human arrival strength 0.2, Alien arrival strength 0, no holding and a 100% minimum speed fraction. |
 | Beyond 5000m | No custom holding or arrival pacing. Enabled faction cohesion still suppresses native group slowdown. |
 
 Coordination slows early units within defined limits; it never increases native speed. Arrival is a best-effort target through native navigation, rather than rigid geometry or a guarantee. Stalls, spreading, casualties and delay budgets can release a command to independent travel.
@@ -39,21 +41,23 @@ The same 12 numeric controls exist separately for Humans and Aliens.
 
 Near means a zero-distance command; Far means MaximumRange. Every pair interpolates linearly. With a 5000m maximum, a 2500m command uses the midpoint of each pair. A longer-than-maximum command receives no custom cohesion, even if Far strength is nonzero.
 
+Defaults below list Human values, followed by Alien values when they differ.
+
 | Control | Default | Meaning and useful direction |
 | --- | --- | --- |
 | MaximumRange | 5000m | Custom-cohesion distance limit; valid 1-100000m. Increasing it makes the same journey use stricter Near-side values. |
-| DestinationRadius | 500m | For dispersed/oversized selections, coordinate already-selected ground units near the destination; valid 0-10000m. Zero disables this fallback. |
-| StrengthNear / StrengthFar | 1 / 0.05 | Arrival-pacing influence, 0-1. Higher values try harder to coordinate arrival. Zero removes this effect at the chosen endpoint. |
+| DestinationRadius | 700m | For dispersed/oversized selections, coordinate already-selected ground units near the destination; valid 0-10000m. Zero disables this fallback. |
+| StrengthNear / StrengthFar | 1 / 0.2; Alien 1 / 0 | Arrival-pacing influence, 0-1. Higher values try harder to coordinate arrival. Zero removes this effect at the chosen endpoint. |
 | HoldStrengthNear / HoldStrengthFar | 1 / 0 | Holding influence for intact remembered drag layouts, 0-1. Higher values more strongly limit units pulling ahead; they do not steer lateral paths. |
-| MinimumSpeedNear / MinimumSpeedFar | 0.1 / 0.95 | Lowest custom cap as a fraction of requested-mode native speed; valid 0.05-1. Higher values prevent deeper deliberate slowdown. Native limits can still be lower. |
-| ArrivalWindowNear / ArrivalWindowFar | 0 / 15s | Allowed early arrival; valid 0-60s. Larger values let early members reach their slots sooner. |
-| MaxDelayNear / MaxDelayFar | 30 / 0.5s | Deliberate slowdown budget; valid 0-120s. Exhaustion ends that member's pacing. It also bounds waiting beyond the initial free-speed arrival estimate. |
+| MinimumSpeedNear / MinimumSpeedFar | 0.05 / 1; Alien 0.15 / 1 | Lowest custom cap as a fraction of requested-mode native speed; valid 0.05-1. Higher values prevent deeper deliberate slowdown. Native limits can still be lower. |
+| ArrivalWindowNear / ArrivalWindowFar | 0.5 / 15s; Alien 2 / 20s | Allowed early arrival; valid 0-60s. Larger values let early members reach their slots sooner. |
+| MaxDelayNear / MaxDelayFar | 20 / 2s; Alien 30 / 3s | Deliberate slowdown budget; valid 0-120s. Exhaustion ends that member's pacing. It also bounds waiting beyond the initial free-speed arrival estimate. |
 
 Strength, HoldStrength and MaxDelay must stay level or decrease toward Far. MinimumSpeed and ArrivalWindow must stay level or increase. Commands validate these relationships. Defaults above do not overwrite existing saved tuning.
 
 ## Example at half the maximum distance
 
-Untouched defaults at 2500m give arrival strength **0.525**, holding strength **0.5**, minimum speed fraction **0.525**, arrival allowance **7.5s** and delay budget **15.25s**. Holding still requires an intact remembered drag formation; a fresh grid or new drag uses arrival pacing only.
+At 2500m, Human defaults give arrival strength **0.6**, holding strength **0.5**, minimum speed fraction **0.525**, arrival allowance **7.75s** and delay budget **11s**. Alien defaults give **0.5**, **0.5**, **0.575**, **11s** and **16.5s**, respectively. Holding still requires an intact remembered drag formation; a fresh grid or new drag uses arrival pacing only.
 
 ## Large turns receive extra freedom
 
@@ -80,7 +84,7 @@ Jumping, climbing or falling temporarily suspends a cap while retaining membersh
 
 ## Advanced CFG controls retained
 
-The normal menu stays compact. Hidden timing/safety keys remain available in CFG and tuning commands: **UpdateInterval 0.35s**, **StartGrace 3s**, **TurnGrace 6s**, **HoldGrace 2s**, **InitialSpread 250m**, **PathDetourRatio 1.8**, **ProgressDistance 1m**, **MaxUnits 256**, **MaximumDuration 600s**, **Retention 120s**, **DebugInterval 3s** and **TraceHistory 80 samples**. These are defaults. General timing/admission controls are separate from the Near/Far profile; other health tolerances vary internally with distance.
+The normal menu stays compact. Hidden timing/safety keys remain available in CFG and tuning commands: **UpdateInterval 0.35s**, **StartGrace 5s Human / 3s Alien**, **TurnGrace 6s**, **HoldGrace 2s**, **InitialSpread 250m**, **PathDetourRatio 1.8**, **ProgressDistance 1m**, **MaxUnits 256**, **MaximumDuration 600s**, **Retention 500s**, **DebugInterval 3s** and **TraceHistory 80 samples**. These are defaults. General timing/admission controls are separate from the Near/Far profile; other health tolerances vary internally with distance.
 
 ## Scouting and travel cover
 
@@ -94,7 +98,7 @@ Scouting distributes up to 75 eligible units across map sectors. Alien flyers us
 /groupcohesion on
 /aliengroupcohesion on
 /cohesion MaximumRange 5000
-/aliencohesion DestinationRadius 500
+/aliencohesion DestinationRadius 700
 /cohesiondebug next
 /cohesiondebug groups
 ```
@@ -105,4 +109,4 @@ Issue a move after `debug next`, then use `/cohesiondebug <id>` for its retained
 
 The author's 12 November feedback on **3.8.0** describes subtle, natural cohesion: desirable short-move holding and longer journeys without noticeable delay. Starting drags from a rectangle was welcomed. Preview mismatch and smoothing were identified for follow-up. These are qualitative observations, not measured performance or verification of 3.8.1.
 
-**3.8.1 status:** Release build passed with zero warnings/errors. DLL staged only; no installation or live tests. Full controls: Group_Cohesion.md. Build details: Changes_3.8.1.md. A full technical report will follow.
+**3.8.2 status:** Release build passed with zero warnings/errors. DLL staged only; no installation or live tests. Full controls: Group_Cohesion.md. Build details: Changes_3.8.2.md. The 3.8.1 movement behavior is retained.

@@ -67,32 +67,44 @@ namespace Si_Formation
         {
             if(cohesionSettings.Count!=0)return;
             DefineCohesion("MaximumRange","Maximum cohesion range","Interpolate one distance profile from zero to this travel distance. Longer commands use no custom pacing or holding.",CohesionGeneralGroup,5000,1,100000,1,"m");
-            DefineCohesion("DestinationRadius","Destination arrival radius","For a dispersed selection, coordinate only eligible ground members already within this horizontal distance of the clicked destination or drag centre when the order is issued. Farther members move independently. Zero disables this fallback.",CohesionGeneralGroup,500,0,10000,25,"m");
-            DefineCohesionPair("Strength","Arrival pacing strength","Blend independent speed toward coordinated arrival pacing; zero leaves arrival speed independent.",1,.05f,0,1,.05f,"",true);
+            DefineCohesion("DestinationRadius","Destination arrival radius","For a dispersed selection, coordinate only eligible ground members already within this horizontal distance of the clicked destination or drag centre when the order is issued. Farther members move independently. Zero disables this fallback.",CohesionGeneralGroup,700,0,10000,25,"m");
+            DefineCohesionPair("Strength","Arrival pacing strength","Blend independent speed toward coordinated arrival pacing; zero leaves arrival speed independent.",1,.2f,0,1,.05f,"",true);
             DefineCohesionPair("HoldStrength","Formation hold strength","Strength of speed-based holding for an eligible remembered formation; zero disables holding. It does not steer paths or force a new selection into a shape.",1,0,0,1,.05f,"",true);
-            DefineCohesionPair("MinimumSpeed","Minimum speed fraction","Minimum pacing cap as a fraction of the requested mode's uncapped speed; native movement can still be slower.",.1f,.95f,.05f,1,.05f,"",false);
-            DefineCohesionPair("ArrivalWindow","Arrival allowance","Allowed early-arrival window relative to the group's predicted arrival time.",0,15,0,60,.25f,"s",false);
-            DefineCohesionPair("MaxDelay","Pacing delay budget","Per-unit cumulative slowdown budget in seconds; pacing also ends after its initial free-speed arrival estimate plus this allowance. Native travel can still take longer.",30,.5f,0,120,.5f,"s",true);
+            DefineCohesionPair("MinimumSpeed","Minimum speed fraction","Minimum pacing cap as a fraction of the requested mode's uncapped speed; native movement can still be slower.",.05f,1,.05f,1,.05f,"",false);
+            DefineCohesionPair("ArrivalWindow","Arrival allowance","Allowed early-arrival window relative to the group's predicted arrival time.",.5f,15,0,60,.25f,"s",false);
+            DefineCohesionPair("MaxDelay","Pacing delay budget","Per-unit cumulative slowdown budget in seconds; pacing also ends after its initial free-speed arrival estimate plus this allowance. Native travel can still take longer.",20,2,0,120,.5f,"s",true);
 
             // Existing common safety/config keys remain available for compatibility,
             // but the normal menu exposes only the twelve distance-profile controls.
             DefineCohesion("UpdateInterval","Update interval","Minimum interval between pacing evaluations.",CohesionGeneralGroup,.35f,.1f,5,.05f,"s",visible:false);
             DefineCohesion("InitialSpread","Starting spread allowance","Extra selection radius beyond the packed-unit footprint before trying the destination-local fallback.",CohesionGeneralGroup,250,0,2000,10,"m",visible:false);
-            DefineCohesion("StartGrace","Movement start grace","Initial no-progress grace and allowed separation of queued segment starts.",CohesionGeneralGroup,3,0,30,.5f,"s",visible:false);
+            DefineCohesion("StartGrace","Movement start grace","Initial no-progress grace and allowed separation of queued segment starts.",CohesionGeneralGroup,5,0,30,.5f,"s",visible:false);
             DefineCohesion("DebugInterval","Debug sampling interval","Minimum periodic interval for enabled or watched traces.",CohesionGeneralGroup,3,.25f,60,.25f,"s",visible:false);
             DefineCohesion("MaxUnits","Maximum cohesion members","Maximum members in a custom command; oversized selections may use the destination-local fallback.",CohesionGeneralGroup,256,2,1024,1,"units",integer:true,visible:false);
             DefineCohesion("MaximumDuration","Maximum cohesion duration","Maximum command lifetime before speed ownership releases.",CohesionGeneralGroup,600,5,3600,5,"s",visible:false);
-            DefineCohesion("Retention","Finished layout retention","Layout/history retention after captured moves finish; pending intended layouts have a separate lifetime.",CohesionGeneralGroup,120,0,1800,5,"s",visible:false);
+            DefineCohesion("Retention","Finished layout retention","Layout/history retention after captured moves finish; pending intended layouts have a separate lifetime.",CohesionGeneralGroup,500,0,1800,5,"s",visible:false);
             DefineCohesion("PathDetourRatio","Formation route detour limit","Route/direct-distance ratio above which a member counts as obstructed.",CohesionGeneralGroup,1.8f,1,10,.1f,"x",visible:false);
             DefineCohesion("HoldGrace","Sustained failure delay","Required duration of excess spread or failed holding checks before degradation or release.",CohesionGeneralGroup,2,.25f,30,.25f,"s",visible:false);
             DefineCohesion("TurnGrace","Formation turn allowance","Arrival pacing during a rotation before eligible formation holding is considered. Zero applies ordinary holding checks immediately.",CohesionGeneralGroup,6,0,30,.5f,"s",visible:false);
             DefineCohesion("ProgressDistance","Progress sample distance","Minimum position change or remaining-route decrease needed to refresh the progress timer.",CohesionGeneralGroup,1,.1f,20,.1f,"m",visible:false);
             DefineCohesion("TraceHistory","Retained trace samples","Maximum retained diagnostic samples per command.",CohesionGeneralGroup,80,10,500,1,"samples",integer:true,visible:false);
-            // Alien defaults come from immutable descriptor defaults, never loaded human values.
+            // Shared defaults come from immutable descriptors, never loaded human values.
+            // Keep the independently tuned Alien endpoints and startup grace.
             foreach(var human in cohesionSettingOrder.ToArray())
             {
+                float value=human.Key switch
+                {
+                    "StrengthFar"=>0,
+                    "MinimumSpeedNear"=>.15f,
+                    "ArrivalWindowNear"=>2,
+                    "ArrivalWindowFar"=>20,
+                    "MaxDelayNear"=>30,
+                    "MaxDelayFar"=>3,
+                    "StartGrace"=>3,
+                    _=>human.Default
+                };
                 var alien=new CohesionSetting{Key=human.Key,Label=human.Label,Description=human.Description,Group=human.Group,Unit=human.Unit,
-                    Default=human.Default,Value=human.Default,Minimum=human.Minimum,Maximum=human.Maximum,Step=human.Step,Integer=human.Integer,Visible=human.Visible,Alien=true};
+                    Default=value,Value=value,Minimum=human.Minimum,Maximum=human.Maximum,Step=human.Step,Integer=human.Integer,Visible=human.Visible,Alien=true};
                 alienCohesionSettings.Add(alien.Key,alien);cohesionSettingOrder.Add(alien);
             }
             foreach(var pair in cohesionPairs.ToArray())
@@ -104,8 +116,8 @@ namespace Si_Formation
         {
             EnsureCohesionDefinitions();
             if(serverPreferences==null)throw new InvalidOperationException("Load server settings before cohesion settings.");
-            groupCohesionPreference=serverPreferences.CreateEntry("GroupCohesion",false,description:"Enable bounded human commander move cohesion; disabled by default.");
-            alienGroupCohesionPreference=serverPreferences.CreateEntry("AlienGroupCohesion",false,description:"Enable independently configured alien commander move cohesion; disabled by default.");
+            groupCohesionPreference=serverPreferences.CreateEntry("GroupCohesion",true,description:"Enable bounded human commander move cohesion; enabled by default.");
+            alienGroupCohesionPreference=serverPreferences.CreateEntry("AlienGroupCohesion",true,description:"Enable independently configured alien commander move cohesion; enabled by default.");
             CohesionEnabled=groupCohesionPreference.Value;
             AlienCohesionEnabled=alienGroupCohesionPreference.Value;
             foreach(var setting in cohesionSettingOrder)

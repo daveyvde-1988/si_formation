@@ -1,8 +1,8 @@
-# Group cohesion — Si_Formation 3.8.1 candidate
+# Group cohesion — Si_Formation 3.8.2 candidate
 
-Si_Formation coordinates ordinary commander ground Move orders with one continuous distance profile. **Human and Alien cohesion have independent switches, both OFF by default.** Near moves can receive strong arrival pacing and speed-based holding of a deliberately dragged formation; those effects fade as distance increases.
+Si_Formation coordinates ordinary commander ground Move orders with one continuous distance profile. **Human and Alien cohesion have independent switches, both ON by default.** Near moves can receive strong arrival pacing and speed-based holding of a deliberately dragged formation; those effects fade as distance increases.
 
-The required 3.8.1 dedicated-server Release build passed on 12 November 2026 with 0 warnings and 0 errors. The candidate is staged, not installed; no tests, live gameplay checks or game/server lifecycle actions were run. Compilation does not establish gameplay behavior or multiplayer presentation; live checks remain user-owned. See [3.8.1 changes](Changes_3.8.1.md). Earlier release notes describe their historical versions.
+The required 3.8.2 dedicated-server Release build passed on 12 November 2026 with 0 warnings and 0 errors. The candidate is staged, not installed; no tests, live gameplay checks or game/server lifecycle actions were run. Compilation does not establish gameplay behavior or multiplayer presentation; live checks remain user-owned. Version 3.8.2 promotes the tuned configuration to built-in defaults; saved values still take precedence. See [3.8.2 defaults](Changes_3.8.2.md) and [3.8.1 behavior changes](Changes_3.8.1.md). Earlier release notes describe their historical versions.
 
 ## One distance profile
 
@@ -18,7 +18,7 @@ Arrival pacing estimates remaining travel time, slows early members within the c
 
 ### Fresh-path startup
 
-Failure accounting waits until a fresh usable path is associated with the captured Move and the existing `StartGrace` has elapsed, default 3 seconds. Stuck/move-problem state left over from the preceding command should not immediately release the new group. Provisional caps are still prepared immediately; fresh route lengths replace provisional timing once. Subsequent congestion does not keep moving the shared deadline. Queued commands retain captured order-ID activation checks.
+Failure accounting waits until a fresh usable path is associated with the captured Move and the existing `StartGrace` has elapsed, default 5 seconds for Humans and 3 seconds for Aliens. Stuck/move-problem state left over from the preceding command should not immediately release the new group. Provisional caps are still prepared immediately; fresh route lengths replace provisional timing once. Subsequent congestion does not keep moving the shared deadline. Queued commands retain captured order-ID activation checks.
 
 ## Dragged layouts and ordinary clicks
 
@@ -32,7 +32,7 @@ Both new drags and remembered-layout clicks attenuate the captured distance prof
 
 Membership changes, casualties, player control or otherwise invalid members invalidate the **whole remembered layout**, rather than preserving survivor gaps. Partial selections and merged groups reform on their next command; unselected units keep their existing native orders. A fresh deliberate drag can establish a new remembered layout.
 
-A valid unfinished drag intention persists while its captured moves remain current or queued, even if speed coordination has released. After those moves finish, the faction's `Retention` period applies. Natural completion does not immediately delete it. Cleanup from an older command cannot erase a newer layout. Faction/master disable and invalidation still clear ownership as appropriate.
+A valid unfinished drag intention persists while its captured moves remain current or queued, even if speed coordination has released. After those moves finish, the faction's `Retention` period applies (default 500 seconds for both factions). Natural completion does not immediately delete it. Cleanup from an older command cannot erase a newer layout. Faction/master disable and invalidation still clear ownership as appropriate.
 
 ## Drag width
 
@@ -44,22 +44,24 @@ A tiny or degenerate drag rejected by native line placement uses the ordinary gr
 
 ## The 12 visible controls per faction
 
-Use `/cohesion` for Human values and `/aliencohesion` for Alien values. Their defaults initially match; changing one does not copy it to the other. Minimum/maximum and step below are menu metadata; commands validate the numeric range and endpoint ordering.
+Use `/cohesion` for Human values and `/aliencohesion` for Alien values. Their defaults differ as shown below; changing one does not copy it to the other. Minimum/maximum and step below are menu metadata; commands validate the numeric range and endpoint ordering.
 
-| Key | Default | Valid range | Menu step | Effect |
-| --- | --- | --- | --- | --- |
-| `MaximumRange` | 5000m | 1–100000m | 1m | Far interpolation endpoint and custom-cohesion distance limit |
-| `DestinationRadius` | 500m | 0–10000m | 25m | Local-cohort fallback radius; 0 disables that fallback |
-| `StrengthNear` | 1 | 0–1 | 0.05 | Arrival pacing strength at zero distance |
-| `StrengthFar` | 0.05 | 0–1 | 0.05 | Arrival pacing strength at MaximumRange |
-| `HoldStrengthNear` | 1 | 0–1 | 0.05 | Remembered-formation holding strength at zero distance |
-| `HoldStrengthFar` | 0 | 0–1 | 0.05 | Remembered-formation holding strength at MaximumRange |
-| `MinimumSpeedNear` | 0.1 | 0.05–1 | 0.05 | Minimum custom cap as a fraction of uncapped requested-mode speed |
-| `MinimumSpeedFar` | 0.95 | 0.05–1 | 0.05 | Corresponding speed fraction at MaximumRange |
-| `ArrivalWindowNear` | 0s | 0–60s | 0.25s | Allowed early arrival at zero distance |
-| `ArrivalWindowFar` | 15s | 0–60s | 0.25s | Allowed early arrival at MaximumRange |
-| `MaxDelayNear` | 30s | 0–120s | 0.5s | Per-member pacing budget at zero distance |
-| `MaxDelayFar` | 0.5s | 0–120s | 0.5s | Per-member pacing budget at MaximumRange |
+| Key | Human default | Alien default | Valid range | Menu step | Effect |
+| --- | --- | --- | --- | --- | --- |
+| `MaximumRange` | 5000m | 5000m | 1–100000m | 1m | Far interpolation endpoint and custom-cohesion distance limit |
+| `DestinationRadius` | 700m | 700m | 0–10000m | 25m | Local-cohort fallback radius; 0 disables that fallback |
+| `StrengthNear` | 1 | 1 | 0–1 | 0.05 | Arrival pacing strength at zero distance |
+| `StrengthFar` | 0.2 | 0 | 0–1 | 0.05 | Arrival pacing strength at MaximumRange |
+| `HoldStrengthNear` | 1 | 1 | 0–1 | 0.05 | Remembered-formation holding strength at zero distance |
+| `HoldStrengthFar` | 0 | 0 | 0–1 | 0.05 | Remembered-formation holding strength at MaximumRange |
+| `MinimumSpeedNear` | 0.05 | 0.15 | 0.05–1 | 0.05 | Minimum custom cap as a fraction of uncapped requested-mode speed |
+| `MinimumSpeedFar` | 1 | 1 | 0.05–1 | 0.05 | Corresponding speed fraction at MaximumRange |
+| `ArrivalWindowNear` | 0.5s | 2s | 0–60s | 0.25s | Allowed early arrival at zero distance |
+| `ArrivalWindowFar` | 15s | 20s | 0–60s | 0.25s | Allowed early arrival at MaximumRange |
+| `MaxDelayNear` | 20s | 30s | 0–120s | 0.5s | Per-member pacing budget at zero distance |
+| `MaxDelayFar` | 2s | 3s | 0–120s | 0.5s | Per-member pacing budget at MaximumRange |
+
+At the default profile midpoint, 2500m, Human arrival strength is 0.6, holding strength 0.5, minimum speed fraction 0.525, arrival allowance 7.75s and pacing budget 11s. Alien values are 0.5, 0.5, 0.575, 11s and 16.5s respectively. Major turns can weaken those captured values as described above.
 
 Strength, HoldStrength and MaxDelay must not increase toward Far. MinimumSpeed and ArrivalWindow must not decrease. Setting a strength to zero disables that corresponding custom effect. A minimum speed fraction does not accelerate a naturally slower, damaged or blocked unit.
 
@@ -101,7 +103,7 @@ Mutation commands require AdminMod Generic permission. Settings are shared serve
 
 The switch/tuning commands without arguments show status. Diagnostics identify faction, phase and continuous distance/beyond-range state. Native dispatch attempts, acceptance/rejection and missing-attempt records are reported separately from custom cohesion enrollment. Per-unit records include target transformations and captured-order state, while samples distinguish requested versus actually applied caps and the reason a cap was skipped. Zero cohesion enrollment alone does not show whether a native single-unit Move succeeded.
 
-Periodic detail is bounded: global tracing samples up to 32 members per group in rotation; an explicitly watched group can sample up to 256. Timing, aggregate history and retention use the owning faction's existing controls. There are no new debug settings. Existing group/slider and generic `controlPresentation` compatibility metadata are preserved; no additional ClientModUI or native-preview work is included in 3.8.1. Rendering depends on the loaded bridge.
+Periodic detail is bounded: global tracing samples up to 32 members per group in rotation; an explicitly watched group can sample up to 256. Timing, aggregate history and retention use the owning faction's existing controls. There are no new debug settings. Existing group/slider and generic `controlPresentation` compatibility metadata are preserved; no additional ClientModUI or native-preview work is included in 3.8.2. Rendering depends on the loaded bridge.
 
 Travel cover preference disabler defaults **ON** independently of cohesion. It changes infantry long-path cover substitution for new/recalculated paths while retaining native Stealth completion-area handling. Combat cover decisions, claims and behavior trees remain unpatched; already-chosen combat-cover routes also skip the shared travel substitution. It does not immediately repath existing orders.
 
@@ -115,33 +117,33 @@ The file remains `UserData/cfg/Formation/si_formation_native.cfg`, category `[Si
 - Alien switch: `AlienGroupCohesion`; numeric keys: `AlienCohesion<Key>`.
 - Travel-cover switch: `TravelCoverPreferenceDisabler`.
 
-For example, `StrengthNear` becomes `CohesionStrengthNear` or `AlienCohesionStrengthNear`. Both tuning commands accept their prefixed keys. Existing faction switches are retained; absent switches default OFF. New single-profile endpoints use their own defaults when absent.
+For example, `StrengthNear` becomes `CohesionStrengthNear` or `AlienCohesionStrengthNear`. Both tuning commands accept their prefixed keys. Existing saved settings take precedence, including faction switches; absent switches default ON. Missing numeric settings use the tuned faction-specific defaults.
 
-**Old Close/Medium/Long keys are ignored and are not migrated into the new profile.** This includes their old boundaries and stage-prefixed endpoints. Their presence in an older cfg does not configure 3.8.1. Use `MaximumRange` and unprefixed-stage keys such as `StrengthNear`.
+**Old Close/Medium/Long keys are ignored and are not migrated into the new profile.** This includes their old boundaries and stage-prefixed endpoints. Their presence in an older cfg does not configure 3.8.2. Use `MaximumRange` and unprefixed-stage keys such as `StrengthNear`.
 
 Existing common safety/diagnostic keys remain available in cfg and through tuning commands, but are hidden from the normal menu:
 
-| Retained key | Default |
-| --- | --- |
-| `UpdateInterval` | 0.35s |
-| `InitialSpread` | 250m |
-| `StartGrace` | 3s |
-| `DebugInterval` | 3s |
-| `MaxUnits` | 256 |
-| `MaximumDuration` | 600s |
-| `Retention` | 120s |
-| `PathDetourRatio` | 1.8 |
-| `HoldGrace` | 2s |
-| `TurnGrace` | 6s |
-| `ProgressDistance` | 1m |
-| `TraceHistory` | 80 samples |
+| Retained key | Human default | Alien default |
+| --- | --- | --- |
+| `UpdateInterval` | 0.35s | 0.35s |
+| `InitialSpread` | 250m | 250m |
+| `StartGrace` | 5s | 3s |
+| `DebugInterval` | 3s | 3s |
+| `MaxUnits` | 256 | 256 |
+| `MaximumDuration` | 600s | 600s |
+| `Retention` | 500s | 500s |
+| `PathDetourRatio` | 1.8 | 1.8 |
+| `HoldGrace` | 2s | 2s |
+| `TurnGrace` | 6s | 6s |
+| `ProgressDistance` | 1m | 1m |
+| `TraceHistory` | 80 samples | 80 samples |
 
 Additional internal health tolerances vary continuously with distance; the old stage-specific watchdog endpoints do not configure them. Profile values are captured for new commands; retained general controls can affect active controller timing. Commands save immediately. Direct cfg edits should be made while the server is stopped; this source update does not change the live cfg.
 
 ## Build and user-owned live checks
 
-Build command: `dotnet build Si_Formation.csproj -c Release --ignore-failed-sources`. The required 3.8.1 build passed on 12 November 2026 with 0 warnings and 0 errors in 3.06 seconds. Output remains `bin/Release/netstandard2.1/Si_Formation.dll`. The candidate is staged, not installed; no tests, live gameplay checks or server lifecycle actions were run.
+Build command: `dotnet build Si_Formation.csproj -c Release --ignore-failed-sources`. The required 3.8.2 build passed on 12 November 2026 with 0 warnings and 0 errors in 3.47 seconds. Output remains `bin/Release/netstandard2.1/Si_Formation.dll`. The candidate is staged, not installed; no tests, live gameplay checks or server lifecycle actions were run.
 
 Compare straight, 90-degree and 180-degree drags/remembered clicks, followed by a straight move. Include very short moves, stale paths after a failed command, queued activation and temporary jumping/climbing/falling; inspect both dispatch outcomes and applied-cap reasons. Retain the earlier checks for membership loss, narrow-drag rectangles, midpoint/exact/beyond MaximumRange, destination-local cohorts, both factions, mixed/pure-air selections and travel-cover ON/OFF. Check Alien air scouts and original-click fallback for failed/excess members.
 
-User observations from 12 November on **3.8.0** described subtle/natural cohesion, desirable short-move holding, no noticeable long-move delay and useful rectangle-start dragging. They also identified native-preview misalignment and a need for smoother presentation. These are qualitative observations, not measured tests or 3.8.1 validation. Client preview/smoothing work is deferred; native obstacle handling, multiplayer presentation and other movement-mod interactions still need live checks.
+User observations from 12 November on **3.8.0** described subtle/natural cohesion, desirable short-move holding, no noticeable long-move delay and useful rectangle-start dragging. They also identified native-preview misalignment and a need for smoother presentation. These are qualitative observations, not measured tests or 3.8.2 validation. Client preview/smoothing work is deferred; native obstacle handling, multiplayer presentation and other movement-mod interactions still need live checks.

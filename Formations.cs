@@ -8,7 +8,7 @@ using Silica.AI;
 using SilicaAdminMod;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "3.8.1", "Local")]
+[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "3.8.2", "Local")]
 [assembly: MelonGame("Bohemia Interactive", "Silica")]
 [assembly: MelonOptionalDependencies("Admin Mod")]
 namespace Si_Formation
