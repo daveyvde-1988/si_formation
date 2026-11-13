@@ -34,11 +34,12 @@ namespace Si_Formation
             // Finish suppressed production handoffs before relinquishing our reservations.
             var pending=Pending.Values.ToArray();
             ClearCohesionState("master disabled");
+            ClearWaypointState();
             ClearFpsStates();ClearRallyState();Scouts.Clear();activeIndependent=false;activeLayout=null;
             foreach(var ticket in pending)
             {
                 var unit=ticket.Unit;
-                if(!unit||unit.IsDestroyed||unit.Team!=ticket.Team||unit.PlayerControlled||unit.ControlledBy||unit.InCompartment||
+                if(!unit||unit.IsDestroyed||RallyExcluded(unit)||unit.Team!=ticket.Team||unit.PlayerControlled||unit.ControlledBy||unit.InCompartment||
                     (unit.Driver&&unit.Driver.ControlledBy))continue;
                 try{unit.RallyTo(ticket.NativeAnchor);}
                 catch(Exception e){MelonLoader.MelonLogger.Warning("Restoring native rally: "+e.Message);}
@@ -49,13 +50,14 @@ namespace Si_Formation
         // handlers supply their own values/formatting; no layout or preference is created.
         private static void FormationStatus(Player p)
         {
-            Reply(p,"Si_Formation 3.8.1; server-wide configuration; enabled "+(ServerEnabled?"ON":"OFF")+"; effective "+(Active?"ON":"OFF")+".");
+            Reply(p,"Si_Formation 3.10.0; server-wide configuration; enabled "+(ServerEnabled?"ON":"OFF")+"; effective "+(Active?"ON":"OFF")+".");
             SpacingCommand(p,"/formationspace status");
             RallyCommand(p,"/rallyspace status");
             foreach(string command in new[]{"sizeinfluence","alienspread","fpsspace","fpsdistance","fpsallowance"})
                 TuningCommand(p,"/"+command+" status",command);
             MovementFixCommand(p,"/movementfix status");
             TravelCoverCommand(p,"/travelcoverdisabler status");
+            DestinationCohesionCommand(p,"/destinationcohesion status");
             Reply(p,CohesionSummary(false));
             Reply(p,CohesionSummary(true));
             Reply(p,"FPS distance uses (5m + player radius) x "+Multiplier(ServerSettings.FpsDistance).ToString("0.###",CultureInfo.InvariantCulture)+"; physical clearance can increase it.");
@@ -76,6 +78,8 @@ namespace Si_Formation
             commands.Add(AdminEntry("/formation advanced","About cohesion controls",AdvancedDescription,"explanation",AdvancedGroup));
             AddSwitch(commands,"!movementfix","Suppress native group slowdown",ServerSettings.MovementFix,"Use independent speeds for new grouped orders. Enabled faction cohesion applies its own pacing.",DefaultGroup);
             AddSwitch(commands,"!travelcoverdisabler","Travel cover preference disabler",TravelCoverPreferenceDisabler,"ON disables human infantry travel-waypoint cover preference. Combat cover behavior remains native.",DefaultGroup);
+            AddSwitch(commands,"!destinationcohesion","Nearby destination cohesion",DestinationLocalCohesionEnabled,
+                "Enable the nearby-destination fallback for scattered or oversized selections, for both factions. Uses each faction's Destination arrival radius (700m by default). OFF by default; compact-group cohesion remains independent.",DefaultGroup);
             AddSlider(commands,"formationspace","Formation spacing (click / drag)",ServerSettings.Spacing,DefaultSpacing,"Commander formations: spacing for new click/drag orders. 0% = baseline; 30% = 3x; 100% = 10x.");
             AddSlider(commands,"sizeinfluence","Large-unit influence",ServerSettings.SizeInfluence,DefaultSizeInfluence,"Commander and FPS formations: 0% uses each unit's footprint; 100% fully applies the largest footprint.");
             AddSlider(commands,"fpsspace","FPS unit spacing",ServerSettings.FpsSpacing,DefaultFpsSpacing,"FPS formations: trailing column, stopped fan and destination grid spacing.",group:FpsGroup);

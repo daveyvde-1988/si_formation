@@ -35,7 +35,7 @@ namespace Si_Formation
             if(!Scouts.TryGetValue(p,out var state))Scouts[p]=state=new ScoutState();
             return state;
         }
-        private static void ScoutRoundStarted(GameMode mode){ClearCohesionState("round changed");CohesionGroups.Clear();ClearFpsStates();ClearRallyState();ClearMovementDiagnostics();Scouts.Clear();}
+        private static void ScoutRoundStarted(GameMode mode){ClearWaypointState();ClearCohesionState("round changed");CohesionGroups.Clear();ClearFpsStates();ClearRallyState();ClearMovementDiagnostics();Scouts.Clear();}
         private static void ScoutRoundEnded(GameMode mode,Team winner){ScoutRoundStarted(mode);}
         private static void ScoutCommand(Player p,string args)
         {

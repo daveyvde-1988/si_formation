@@ -67,7 +67,7 @@ namespace Si_Formation
         {
             if(cohesionSettings.Count!=0)return;
             DefineCohesion("MaximumRange","Maximum cohesion range","Interpolate one distance profile from zero to this travel distance. Longer commands use no custom pacing or holding.",CohesionGeneralGroup,5000,1,100000,1,"m");
-            DefineCohesion("DestinationRadius","Destination arrival radius","For a dispersed selection, coordinate only eligible ground members already within this horizontal distance of the clicked destination or drag centre when the order is issued. Farther members move independently. Zero disables this fallback.",CohesionGeneralGroup,700,0,10000,25,"m");
+            DefineCohesion("DestinationRadius","Destination arrival radius","When Nearby destination cohesion is ON, coordinate only eligible ground members of a dispersed selection already within this horizontal distance of the clicked destination or drag centre when the order is issued. Farther members move independently. Zero disables this fallback.",CohesionGeneralGroup,700,0,10000,25,"m");
             DefineCohesionPair("Strength","Arrival pacing strength","Blend independent speed toward coordinated arrival pacing; zero leaves arrival speed independent.",1,.2f,0,1,.05f,"",true);
             DefineCohesionPair("HoldStrength","Formation hold strength","Strength of speed-based holding for an eligible remembered formation; zero disables holding. It does not steer paths or force a new selection into a shape.",1,0,0,1,.05f,"",true);
             DefineCohesionPair("MinimumSpeed","Minimum speed fraction","Minimum pacing cap as a fraction of the requested mode's uncapped speed; native movement can still be slower.",.05f,1,.05f,1,.05f,"",false);

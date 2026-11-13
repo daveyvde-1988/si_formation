@@ -34,8 +34,9 @@ namespace SilicaFormationShared
                 for(int i=band;i<last;i++)
                 {
                     var bounds=units[i].PhysicalBounds.size;float effect=influence/100f;
-                    widths[i]=Mathf.Max(bounds.x+.5f,(Mathf.Lerp(Mathf.Max(1,bounds.x),Mathf.Max(1,largestWidth),effect)+4)*scale);
-                    depths[i]=Mathf.Max(bounds.z+.5f,(Mathf.Lerp(Mathf.Max(1,bounds.z),Mathf.Max(1,largestDepth),effect)+4)*scale);
+                    float diameter=Mathf.Max(.5f,units[i].PhysicalRadius)*2+.5f;
+                    widths[i]=Mathf.Max(diameter,Mathf.Max(bounds.x+.5f,(Mathf.Lerp(Mathf.Max(1,bounds.x),Mathf.Max(1,largestWidth),effect)+4)*scale));
+                    depths[i]=Mathf.Max(diameter,Mathf.Max(bounds.z+.5f,(Mathf.Lerp(Mathf.Max(1,bounds.z),Mathf.Max(1,largestDepth),effect)+4)*scale));
                     totalPitch+=widths[i];rowWidth+=widths[i];rowCount++;
                     if(rowCount==columns||i==last-1)
                     {minimumWidth=Mathf.Max(minimumWidth,rowWidth);rowWidth=0;rowCount=0;}

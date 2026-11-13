@@ -8,7 +8,7 @@ using Silica.AI;
 using SilicaAdminMod;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "3.8.2", "Local")]
+[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "3.10.0", "Local")]
 [assembly: MelonGame("Bohemia Interactive", "Silica")]
 [assembly: MelonOptionalDependencies("Admin Mod")]
 namespace Si_Formation
@@ -20,7 +20,7 @@ namespace Si_Formation
             internal int Spacing=DefaultSpacing, Rally=DefaultRally, SizeInfluence=DefaultSizeInfluence, AlienSpread=DefaultAlienSpread, FpsSpacing=DefaultFpsSpacing, FpsDistance=DefaultFpsDistance, FpsAllowance=DefaultFpsAllowance;
             internal bool MovementFix=DefaultMovementFix;
         }
-        private struct MoveState { internal bool Independent; internal LayoutContext Layout; internal CohesionDispatch Cohesion; internal MovementCommandDiagnostics Diagnostics; }
+        private struct MoveState { internal bool Independent; internal LayoutContext Layout; internal CohesionDispatch Cohesion; internal MovementCommandDiagnostics Diagnostics; internal WaypointDispatch Waypoint; }
         private const int DefaultSpacing=32, DefaultRally=25, DefaultSizeInfluence=30, DefaultAlienSpread=50, DefaultFpsSpacing=32, DefaultFpsDistance=10, DefaultFpsAllowance=20;
         private const bool DefaultMovementFix=true;
         private static readonly Settings ServerSettings=new Settings();
@@ -33,7 +33,7 @@ namespace Si_Formation
         {
             try
             {
-                foreach(string name in new[]{"formation","formationspace","rallyspace","scout","movementfix","sizeinfluence","alienspread","fpsspace","fpsdistance","fpsallowance","groupcohesion","cohesion","aliengroupcohesion","aliencohesion","cohesiondebug","travelcoverdisabler"})
+                foreach(string name in new[]{"formation","formationspace","rallyspace","scout","movementfix","sizeinfluence","alienspread","fpsspace","fpsdistance","fpsallowance","groupcohesion","cohesion","aliengroupcohesion","aliencohesion","cohesiondebug","travelcoverdisabler","destinationcohesion"})
                     if(PlayerMethods.FindPlayerCommandFromString(name)!=null||AdminMethods.FindAdminCommandFromString(name)!=null)
                         throw new InvalidOperationException("Command already registered: "+name+". Remove the old formation mod.");
                 LoadServerSettings();
@@ -47,8 +47,10 @@ namespace Si_Formation
                 InstallSpacing();
                 InstallFps();
                 InstallCohesion();
+                InstallReverseCommandRouting();
                 InstallMovementDiagnostics();
                 InstallTravelCover();
+                InstallWaypointBarriers();
                 RegisterCohesionCommands();
                 // Shared callback keeps scout as a chat alias of the single player menu entry.
                 PlayerMethods.RegisterPlayerCommand("formation",FormationCommand,true);
@@ -56,6 +58,8 @@ namespace Si_Formation
                 AdminMethods.RegisterAdminCommand("formationspace",SpacingCommand,Power.Generic,"Server commander click/drag spacing, 0..100%.");
                 AdminMethods.RegisterAdminCommand("rallyspace",RallyCommand,Power.Generic,"Server rally spacing, 0..100%.");
                 AdminMethods.RegisterAdminCommand("movementfix",MovementFixCommand,Power.Generic,"Server grouped movement speed fix, on|off|status.");
+                AdminMethods.RegisterAdminCommand("destinationcohesion",DestinationCohesionCommand,Power.Generic,
+                    "Nearby destination cohesion fallback, on|off|status; OFF by default.");
                 AdminMethods.RegisterAdminCommand("sizeinfluence",(p,a)=>TuningCommand(p,a,"sizeinfluence"),Power.Generic,"Server large-unit influence, 0..100%.");
                 AdminMethods.RegisterAdminCommand("alienspread",(p,a)=>TuningCommand(p,a,"alienspread"),Power.Generic,"Server Alien spacing scale, 0..100%.");
                 AdminMethods.RegisterAdminCommand("fpsspace",(p,a)=>TuningCommand(p,a,"fpsspace"),Power.Generic,"Server FPS spacing, 0..100%.");
@@ -84,8 +88,8 @@ namespace Si_Formation
         private static bool BeginMove(IReadOnlyList<BaseGameObject> objects,Vector3 worldPosition,Target target,AgentMoveSpeed moveSpeed,
             bool isAttack,bool remote,bool queueOrder,bool useLine,Vector3 lineEnd,OrderDefinition forcedOrder,ref bool __result,out MoveState __state)
         {
-            __state=new MoveState{Independent=activeIndependent,Layout=activeLayout,Cohesion=activeCohesion,Diagnostics=activeMovementDiagnostics};
-            activeIndependent=false;activeLayout=null;activeCohesion=null;activeMovementDiagnostics=null;
+            __state=new MoveState{Independent=activeIndependent,Layout=activeLayout,Cohesion=activeCohesion,Diagnostics=activeMovementDiagnostics,Waypoint=activeWaypoint};
+            activeIndependent=false;activeLayout=null;activeCohesion=null;activeMovementDiagnostics=null;activeWaypoint=null;
             if(!Active||!Game.GetIsServer()||objects==null)return true;
             var first=objects.FirstOrDefault(obj=>obj&&!obj.IsDestroyed);
             if(!first)return true;
@@ -100,7 +104,23 @@ namespace Si_Formation
                     if(DispatchScout(commander,objects,worldPosition,moveSpeed,out bool success)){__result=success;return false;}
                 }
             }
-            if(forcedOrder)return true;
+            if(commander&&(remote||Player.CurrentPlayer==commander)&&!target&&!isAttack&&(!forcedOrder||forcedOrder is ReverseOrderDefinition))
+                activeWaypoint=PrepareWaypoint(objects,commander,worldPosition);
+            if(forcedOrder)
+            {
+                if(forcedOrder is ReverseOrderDefinition&&commander&&(remote||Player.CurrentPlayer==commander)&&!target&&!isAttack)
+                {
+                    try
+                    {
+                        activeCohesion=PrepareReverseFormation(objects,commander,worldPosition,queueOrder,forcedOrder,moveSpeed);
+                        if(activeCohesion!=null&&activeCohesion.Skip==null)activeIndependent=!activeCohesion.Unpaced;
+                        else if(activeCohesion!=null)
+                        {Reply(commander,"Reverse formation uses native movement: "+activeCohesion.Skip+".");activeCohesion=null;}
+                    }
+                    catch(Exception e){activeLayout=null;activeCohesion=null;MelonLogger.Warning("Reverse formation skipped: "+e.Message);}
+                }
+                return true;
+            }
             var tuning=ServerSettings;
             // Adaptive ownership always replaces both native slowdown layers, even
             // when a scattered/unsupported selection takes the independent fallback.
@@ -124,14 +144,22 @@ namespace Si_Formation
             }
             return true;
         }
-        private static Exception EndMove(Exception __exception,MoveState __state)
+        private static Exception EndMove(Exception __exception,MoveState __state,ref bool __result)
         {
-            try{if(__exception==null)FinishCohesion(activeCohesion);}
+            try
+            {
+                if(__exception==null)
+                {
+                    FinishCohesion(activeCohesion);
+                    FinishWaypoint(activeWaypoint);
+                    if(activeCohesion!=null&&activeCohesion.AcceptedReverseInfantryMoves>0)__result=true;
+                }
+            }
             catch(Exception e){MelonLogger.Warning("Cohesion dispatch released: "+e);}
             finally
             {
                 FinishMovementDiagnostics(activeMovementDiagnostics,activeCohesion,__exception);
-                activeIndependent=__state.Independent;activeLayout=__state.Layout;activeCohesion=__state.Cohesion;activeMovementDiagnostics=__state.Diagnostics;
+                activeIndependent=__state.Independent;activeLayout=__state.Layout;activeCohesion=__state.Cohesion;activeMovementDiagnostics=__state.Diagnostics;activeWaypoint=__state.Waypoint;
             }
             return __exception;
         }
@@ -161,16 +189,17 @@ namespace Si_Formation
             if(!ready||!Game.GetIsServer())return;
             foreach(var p in Scouts.Keys.Where(p=>!p||!Player.Players.Contains(p)).ToArray())Scouts.Remove(p);
             foreach(var item in Scouts)if(!item.Key.IsCommander||item.Key.Team!=item.Value.ScoutTeam)item.Value.ScoutArmed=false;
+            TickWaypointState();
             if(!ServerEnabled)return;
             TickRally();
             TickFps();
             TickCohesion();
         }
         public override void OnSceneWasUnloaded(int buildIndex,string sceneName)
-        {ClearMovementDiagnostics();ClearCohesionState("scene unload");CohesionGroups.Clear();ClearRallyState();ClearFpsStates();foreach(var settings in Scouts.Values)settings.ScoutArmed=false;}
+        {ClearWaypointState();ClearMovementDiagnostics();ClearCohesionState("scene unload");CohesionGroups.Clear();ClearRallyState();ClearFpsStates();foreach(var settings in Scouts.Values)settings.ScoutArmed=false;}
         public override void OnDeinitializeMelon()
         {
-            ready=false;ClearMovementDiagnostics();ClearCohesionState("mod unload");CohesionGroups.Clear();RemoveFormationPatches();Scouts.Clear();ClearRallyState();ClearFpsStates();
+            ready=false;ClearWaypointState();ClearMovementDiagnostics();ClearCohesionState("mod unload");CohesionGroups.Clear();RemoveFormationPatches();Scouts.Clear();ClearRallyState();ClearFpsStates();
             GameEvents.OnGameStarted-=ScoutRoundStarted;GameEvents.OnGameEnded-=ScoutRoundEnded;
         }
     }

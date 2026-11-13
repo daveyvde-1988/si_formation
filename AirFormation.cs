@@ -20,36 +20,46 @@ namespace Si_Formation
             Vector3 right=Vector3.Cross(Vector3.up,forward);
             var ground=points.Where(item=>item.Key&&!IsFormationAir(item.Key)).ToArray();
             Vector3 airAnchor=anchor;
+            float minX=0,maxX=0,rearEdge=0;
             if(ground.Length>0)
             {
-                float front=ground.Max(item=>Vector3.Dot(item.Value-anchor,forward));
-                float rear=ground.Min(item=>Vector3.Dot(item.Value-anchor,forward));
-                // Begin in the rear half; additional small rows extend rearward.
-                airAnchor+=forward*Mathf.Lerp(rear,front,.25f);
+                rearEdge=ground.Min(item=>Vector3.Dot(item.Value-anchor,forward)-Radius(item.Key));
+                minX=ground.Min(item=>Vector3.Dot(item.Value-anchor,right)-Radius(item.Key));
+                maxX=ground.Max(item=>Vector3.Dot(item.Value-anchor,right)+Radius(item.Key));
+                airAnchor+=forward*(rearEdge-250);
             }
             foreach(var unit in aircraft)points.Remove(unit);
             var units=aircraft.Where(FormationEligible).OrderByDescending(unit=>Vector3.Dot(unit.transform.position,forward)).ToList();
             if(units.Count==0)return;
-            float largest=units.Max(Radius),depth=0,previousDepth=0;
-            int columns=Mathf.Min(3,Mathf.Max(1,Mathf.CeilToInt(Mathf.Sqrt(units.Count))));
+            float largest=units.Max(Radius);
+            float cellWidth=units.Max(unit=>AirCellSize(unit,largest,settings,scale,true));
+            float cellDepth=units.Max(unit=>AirCellSize(unit,largest,settings,scale,false));
+            if(ground.Length==0){float width=cellWidth*Mathf.Max(0,Mathf.CeilToInt(Mathf.Sqrt(units.Count))-1);minX=-width*.5f;maxX=width*.5f;}
+            int columns=Mathf.Min(units.Count,Mathf.Max(1,Mathf.FloorToInt((maxX-minX)/cellWidth)+1));
             var accepted=new List<KeyValuePair<Unit,Vector3>>();
             for(int start=0;start<units.Count;start+=columns)
             {
                 var row=units.Skip(start).Take(columns).OrderBy(unit=>Vector3.Dot(unit.transform.position,right)).ToArray();
-                var widths=row.Select(unit=>AirCellSize(unit,largest,settings,scale,true)).ToArray();
-                float rowDepth=row.Max(unit=>AirCellSize(unit,largest,settings,scale,false));
-                if(start>0)depth+=(previousDepth+rowDepth)*.5f;
-                float x=-widths.Sum()*.5f;
                 for(int i=0;i<row.Length;i++)
                 {
-                    var unit=row[i];x+=widths[i]*.5f;
-                    Vector3 desired=airAnchor+right*x-forward*depth;
+                    var unit=row[i];
+                    float x=row.Length==1?(minX+maxX)*.5f:Mathf.Lerp(minX,maxX,(float)i/(row.Length-1));
+                    Vector3 desired=airAnchor+right*x-forward*(start/columns*cellDepth);
                     if(TryAirFormationPoint(unit,desired,out var point)&&accepted.All(other=>
-                        FlatDistanceSq(point,other.Value)>=Mathf.Pow(Radius(unit)+Radius(other.Key)+.5f,2)))
-                    {points[unit]=point;accepted.Add(new KeyValuePair<Unit,Vector3>(unit,point));}
-                    x+=widths[i]*.5f;
+                        FlatDistanceSq(point,other.Value)>=Mathf.Pow(Radius(unit)+Radius(other.Key)+.5f,2))&&
+                        (ground.Length==0||Vector3.Dot(point-anchor,forward)<=rearEdge-250+.1f&&
+                        Vector3.Dot(point-anchor,right)>=minX-.1f&&Vector3.Dot(point-anchor,right)<=maxX+.1f))
+                    {
+                        points[unit]=point;accepted.Add(new KeyValuePair<Unit,Vector3>(unit,point));
+                        if(activeLayout!=null)activeLayout.RejectedAir.Remove(unit);
+                    }
+                    else if(activeLayout!=null)
+                    {
+                        activeLayout.RejectedAir.Add(unit);
+                        if(CohesionDebugEnabled||activeMovementDiagnostics?.Watched==true)
+                            MelonLoader.MelonLogger.Msg("[Formation air] no safe rear slot for "+MovementUnitName(unit)+" desired="+MovementPoint(desired)+"; existing order retained.");
+                    }
                 }
-                previousDepth=rowDepth;
             }
         }
         private static float AirCellSize(Unit unit,float largest,Settings settings,float scale,bool width)

@@ -16,6 +16,7 @@ namespace Si_Formation
             internal Team Team;
             internal float Scale,Pitch;
             internal Dictionary<Unit,Vector3> Points=new Dictionary<Unit,Vector3>();
+            internal readonly HashSet<Unit> RejectedAir=new HashSet<Unit>();
         }
         private static LayoutContext activeLayout;
         private static bool FormationEligible(Unit u)=>u&&!u.IsDestroyed&&u.AIControlled&&!u.PlayerControlled&&!u.ControlledBy&&!u.InCompartment&&!(u.Driver&&u.Driver.ControlledBy)&&u.CanMove&&u.OrderAgent&&u.AIAgent&&u.AIAgent.AgentPathfinding&&u.AIAgent.AgentPathfinding.PathfindingSeeker;
@@ -66,12 +67,14 @@ namespace Si_Formation
             HarmonyInstance.Patch(AccessTools.Method(typeof(StrategyMode),"IssueFormationOrder"),prefix:new HarmonyMethod(typeof(Formations),nameof(PlaceFormationUnit)));
             HarmonyInstance.Patch(AccessTools.Method(typeof(Silica.LineFormation),"BuildSlots"),postfix:new HarmonyMethod(typeof(Formations),nameof(ScaleLineSlots)));
         }
-        private static void PlaceFormationUnit(BaseGameObject obj,ref Vector3 worldPosition)
+        private static bool PlaceFormationUnit(BaseGameObject obj,ref Vector3 worldPosition,ref bool __result)
         {
-            if(!Active||!Game.GetIsServer()||!(obj is Unit unit))return;
+            if(!Active||!Game.GetIsServer()||!(obj is Unit unit))return true;
+            if(activeLayout!=null&&activeLayout.RejectedAir.Contains(unit)){__result=false;return false;}
             if(activeCohesion!=null&&activeCohesion.Skip==null&&activeCohesion.LocalPoints!=null&&activeCohesion.LocalPoints.TryGetValue(unit,out var local))
-            {worldPosition=local;return;}
+            {worldPosition=local;return true;}
             if(activeLayout!=null&&activeLayout.Points.TryGetValue(unit,out var point))worldPosition=point;
+            return true;
         }
         private static void ScaleLineSlots(List<Unit> units,Vector3 start,Vector3 end,List<Vector3> slotsOut,ref float spacing,bool __result)
         {

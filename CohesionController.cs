@@ -17,6 +17,7 @@ namespace Si_Formation
         {
             internal Team Team;
             internal float Time;
+            internal int OriginalCount;
             internal Vector3 Forward;
             internal bool Invalidated,DragOrigin;
             internal readonly Dictionary<Unit,Vector3> Offsets=new Dictionary<Unit,Vector3>();
@@ -27,9 +28,13 @@ namespace Si_Formation
             internal Player Owner;
             internal Team Team;
             internal Vector3 Anchor,Origin,Heading;
-            internal bool Drag,Queued,Turned,Reform,DestinationLocal,RememberedDrag,Unpaced;
+            internal bool Drag,Queued,Turned,Reform,DestinationLocal,RememberedDrag,Unpaced,Reverse;
+            internal int OriginalCount;
             internal float TurnAngle;
             internal int IgnoredGround;
+            internal int AcceptedReverseInfantryMoves;
+            internal Dictionary<Unit,ReverseInfantryMove> ReverseInfantryMoves;
+            internal CohesionLayout PreservedLayout;
             internal Dictionary<Unit,Vector3> LocalPoints;
             internal string Skip;
             internal readonly HashSet<Unit> Candidates=new HashSet<Unit>();
@@ -46,7 +51,7 @@ namespace Si_Formation
             internal float Direct,Remaining,InitialRemaining,FreeSpeed,Cap=-1,LastProgress,LastRemaining,DelaySpent,FreeArrival,StartedAt=-1,FreshPathAt=-1;
             internal float AppliedCap=-1,LastCapApplied=-1;
             internal string CapReason="not evaluated",DiagnosticState;
-            internal bool Started,Arrived,Lost,Free,RouteReady,RouteInitialized,Obstructed,Stuck,Lagging,Suspended,HealthReady;
+            internal bool Started,Arrived,Lost,Free,RouteReady,RouteInitialized,Obstructed,Stuck,Lagging,Suspended,HealthReady,Reverse;
         }
         private struct CohesionOrderStamp { internal bool Captured,HadOrder; internal uint HeadId; internal CohesionLayout Layout; }
         // Harmony keys __state by the patch method's declaring type. This pair
@@ -59,8 +64,8 @@ namespace Si_Formation
                 __state=new CohesionOrderStamp{Captured=true,HadOrder=__instance.Orders.Count>0,HeadId=__instance.Orders.Count>0?__instance.Orders[0].Id:0};
                 if(__instance.Owner is Unit unit)CohesionLayouts.TryGetValue(unit,out __state.Layout);
             }
-            internal static void After(AIOrderProcessor __instance,OrderIssueParams __2,bool __result,CohesionOrderStamp __state)
-            {ObserveCohesionOrder(__instance,__result,__2.CalledByAI,__state);}
+            internal static void After(AIOrderProcessor __instance,OrderTarget __1,OrderIssueParams __2,bool __result,CohesionOrderStamp __state)
+            {ObserveCohesionOrder(__instance,__result,__2.CalledByAI,__state,__1);}
         }
         private sealed class CohesionTravel
         {
@@ -68,7 +73,7 @@ namespace Si_Formation
             internal Player Owner;
             internal Team Team;
             internal Vector3 Anchor,Origin,Forward;
-            internal bool Drag,Queued,Watched,Turned,Reform,ArrivalRebased;
+            internal bool Drag,Queued,Watched,Turned,Reform,ArrivalRebased,Reverse,DestinationLocal;
             internal CohesionTuning Tuning;
             internal CohesionLayout Layout;
             internal CohesionPhase Phase=CohesionPhase.Waiting;
@@ -119,9 +124,10 @@ namespace Si_Formation
             return unit is Soldier soldier&&(soldier.IsJumping||soldier.IsClimbing||soldier.IsFalling);
         }
         private static bool CohesionEligible(Unit unit)=>CohesionGroundMember(unit)&&!CohesionTraversalPaused(unit);
-        private static float CohesionModeSpeed(Unit unit,AgentMoveSpeed mode)
+        private static float CohesionModeSpeed(Unit unit,AgentMoveSpeed mode,bool reverse=false)
         {
-            float speed=mode==AgentMoveSpeed.Fast?unit.TopSpeed:unit.NormalSpeed;
+            // Native reverse has its own speed, even when the requested mode is Fast.
+            float speed=reverse&&unit is Vehicle reversing?reversing.ReverseNormalSpeed:mode==AgentMoveSpeed.Fast?unit.TopSpeed:unit.NormalSpeed;
             if(unit is Soldier soldier)
             {
                 speed=mode==AgentMoveSpeed.Stealth?soldier.WalkSpeed:mode==AgentMoveSpeed.Fast&&soldier.CanSprint?soldier.SprintSpeed:soldier.RunSpeed;
@@ -144,27 +150,43 @@ namespace Si_Formation
             bool reform=false;
             foreach(var layout in touched)
             {
-                bool complete=layout.DragOrigin&&!layout.Invalidated&&layout.Offsets.Count==selection.Count&&selection.All(unit=>
-                    CohesionLayouts.TryGetValue(unit,out var current)&&ReferenceEquals(current,layout));
+                bool complete=layout.DragOrigin&&CohesionLayoutSelectionMatches(layout,selection);
                 if(complete)continue;
                 reform=true;
                 InvalidateCohesionLayout(layout);
             }
             return reform;
         }
+        private static bool CohesionLayoutMembershipValid(CohesionLayout layout)
+        {
+            if(layout==null||layout.Invalidated)return false;
+            int original=Math.Max(layout.OriginalCount,layout.Offsets.Count);
+            var survivors=layout.Offsets.Keys.Where(unit=>unit&&!unit.IsDestroyed).ToList();
+            // Keep the original denominator across repeated survivor moves. Exactly
+            // 40% casualties retains the shape; live control/team changes never do.
+            return original>0&&(original-survivors.Count)*5<=original*2&&
+                survivors.All(unit=>FormationEligible(unit)&&unit.Team==layout.Team);
+        }
+        private static bool CohesionLayoutSelectionMatches(CohesionLayout layout,List<Unit> selection)
+        {
+            if(!CohesionLayoutMembershipValid(layout))return false;
+            int alive=layout.Offsets.Keys.Count(unit=>unit&&!unit.IsDestroyed);
+            return alive==selection.Count&&selection.All(unit=>layout.Offsets.ContainsKey(unit)&&
+                CohesionLayouts.TryGetValue(unit,out var current)&&ReferenceEquals(current,layout));
+        }
         private static void InvalidateCohesionLayout(CohesionLayout layout)
         {
             if(layout==null||layout.Invalidated)return;
             layout.Invalidated=true;layout.Time=Time.time;layout.Forward=Vector3.zero;
-            // Leave a bounded marker on survivors, never a shape containing holes.
-            // Existing move targets remain native; only future reuse is discarded.
+            // Leave a bounded marker on survivors. Existing native destinations
+            // remain untouched; only future reuse is discarded.
             layout.Offsets.Clear();layout.Orders.Clear();
         }
         private static CohesionDispatch PrepareCohesion(IReadOnlyList<BaseGameObject> objects,Player owner,Vector3 position,
             Vector3 lineEnd,bool drag,bool queued)
         {
             if(!owner||!CohesionEnabledFor(owner.Team))return null;
-            var selected=objects.OfType<Unit>().Where(u=>u&&u.Team==owner.Team).Distinct().ToList();
+            var selected=objects.OfType<Unit>().Where(u=>u&&!u.IsDestroyed&&u.Team==owner.Team).Distinct().ToList();
             // Aircraft have their own destination band and never set a ground
             // group's footprint, speed, casualty denominator or admission status.
             var ground=selected.Where(u=>!IsFormationAir(u)).ToList();
@@ -181,6 +203,8 @@ namespace Si_Formation
             bool dispersed=initialSpread>CohesionValueFor(owner.Team,"InitialSpread")+bodyAllowance;
             if(dispersed||units.Count>maximum)
             {
+                if(!DestinationLocalCohesionEnabled)
+                {context.Skip="destination-local cohesion is switched off";return context;}
                 float radius=CohesionValueFor(owner.Team,"DestinationRadius");
                 if(radius<=0){context.Skip=dispersed?"initial selection is too dispersed":"selection exceeds unit limit";return context;}
                 units=units.Where(u=>CohesionGroundMember(u)&&FlatDistanceSq(u.transform.position,context.Anchor)<=radius*radius)
@@ -224,12 +248,13 @@ namespace Si_Formation
             }
             else if(!drag&&activeLayout!=null)
             {
-                // Only a deliberately dragged, intact layout may be translated.
+                // Only a deliberately dragged layout may be translated. Casualty
+                // holes remain in place through 40% losses of its original members.
                 // Ordinary clicks and rally parking never snapshot current gaps.
                 CohesionLayouts.TryGetValue(units[0],out var remembered);
                 bool reuse=!context.Unpaced&&!context.Reform&&remembered!=null&&remembered.DragOrigin&&!remembered.Invalidated&&remembered.Team==context.Team&&
                     (LayoutMovePending(remembered)||Time.time-remembered.Time<=CohesionValueFor(context.Team,"Retention"))&&
-                    remembered.Offsets.Count==units.Count&&units.All(u=>CohesionLayouts.TryGetValue(u,out var found)&&ReferenceEquals(found,remembered));
+                    CohesionLayoutSelectionMatches(remembered,units);
                 if(!reuse)
                 {
                     context.Reform=true;
@@ -237,6 +262,7 @@ namespace Si_Formation
                     return context;
                 }
                 context.RememberedDrag=true;
+                context.OriginalCount=Math.Max(remembered.OriginalCount,remembered.Offsets.Count);
                 Vector3 oldHeading=remembered.Forward;
                 if(oldHeading.sqrMagnitude<.01f)oldHeading=FormationHeading(units,travel);
                 context.Heading=oldHeading;
@@ -249,16 +275,28 @@ namespace Si_Formation
                 foreach(var unit in units)
                 {
                     Vector3 offset=remembered.Offsets[unit];
-                    if(!TerrainProjection.TryProject(unit,context.Anchor+turn*Flat(offset),out var target))
-                    {context.Skip="preserved layout could not be projected";context.Candidates.Clear();return context;}
+                    Vector3 desired=context.Anchor+turn*Flat(offset);
+                    if(!TerrainProjection.TryProject(unit,desired,out var target))
+                    {
+                        context.PreservedLayout=remembered;
+                        remembered.Time=Time.time;
+                        TraceLayoutFailure(context,"projection",unit,desired,null);
+                        context.Skip="preserved layout could not be projected";context.Candidates.Clear();return context;
+                    }
                     points[unit]=target;
                 }
                 // Terrain projection can snap sideways. Retain physical clearance.
                 for(int i=0;i<units.Count;i++)for(int j=i+1;j<units.Count;j++)
                 {
-                    float clearance=Radius(units[i])+Radius(units[j]);
-                    if(FlatDistanceSq(points[units[i]],points[units[j]])<clearance*clearance)
-                    {context.Skip="preserved layout loses physical clearance";context.Candidates.Clear();return context;}
+                    float clearance=Radius(units[i])+Radius(units[j])+.5f;
+                    if(FlatDistanceSq(points[units[i]],points[units[j]])+.001f<clearance*clearance)
+                    {
+                        context.PreservedLayout=remembered;
+                        remembered.Time=Time.time;
+                        TraceLayoutFailure(context,"clearance",units[i],context.Anchor+turn*Flat(remembered.Offsets[units[i]]),points[units[i]],
+                            units[j],points[units[j]],clearance);
+                        context.Skip="preserved layout loses physical clearance";context.Candidates.Clear();return context;
+                    }
                 }
                 AddAirFormationSlots(selected.Where(u=>IsFormationAir(u)&&FormationEligible(u)).ToList(),points,context.Anchor,
                     context.Heading,activeLayout.Settings,activeLayout.Scale);
@@ -273,24 +311,33 @@ namespace Si_Formation
             if(!__result||context==null||context.Skip!=null||!(obj is Unit unit)||!context.Candidates.Contains(unit))return;
             var processor=unit.OrderAgent;
             if(!processor||processor.Orders.Count==0)return;
-            // A successful resolved order may be a utility action rather than Move.
-            if(!(processor.Orders[processor.Orders.Count-1] is AIMoveOrder order)||FlatDistanceSq(order.WorldPosition,worldPosition)>1)return;
-            context.Issued[unit]=new CohesionMember{Unit=unit,Processor=processor,OrderId=order.Id,Target=order.WorldPosition,
-                Mode=order.MoveSpeed,LastPosition=unit.transform.position};
+            // Match the actual accepted native order, including its reverse mode.
+            var order=processor.Orders[processor.Orders.Count-1];
+            bool reverse=context.Reverse&&(context.ReverseInfantryMoves==null||!context.ReverseInfantryMoves.ContainsKey(unit));
+            if(!CohesionMoveData(order,reverse,out var destination,out var mode)||FlatDistanceSq(destination,worldPosition)>1)return;
+            context.Issued[unit]=new CohesionMember{Unit=unit,Processor=processor,OrderId=order.Id,Target=destination,
+                Mode=mode,Reverse=reverse,LastPosition=unit.transform.position};
         }
         private static void FinishCohesion(CohesionDispatch context)
         {
             if(context==null)return;
+            if(context.Reverse)
+            {
+                IssueReverseInfantryMoves(context);
+                if(context.Unpaced)return;
+            }
             float now=Time.time;
             PruneCohesion(now);
             var travel=new CohesionTravel{Id=nextCohesionId++,Owner=context.Owner,Team=context.Team,Anchor=context.Anchor,
-                Origin=context.Origin,Drag=context.Drag,Queued=context.Queued,Turned=context.Turned,Reform=context.Reform,Created=now,LastTick=now,
+                Origin=context.Origin,Drag=context.Drag,Queued=context.Queued,Turned=context.Turned,Reform=context.Reform,Reverse=context.Reverse,
+                DestinationLocal=context.DestinationLocal,Created=now,LastTick=now,
                 TurnAngle=context.Turned?context.TurnAngle:0,
                 Forward=Flat(context.Anchor-context.Origin).normalized,Tuning=CaptureCohesionTuning(Vector3.Distance(Flat(context.Anchor),Flat(context.Origin)),context.Team)};
             float rotation=Mathf.Clamp01((travel.TurnAngle-15)/75);
             travel.Tuning.Strength*=1-.85f*rotation;
             travel.Tuning.HoldStrength*=1-rotation;
             travel.Tuning.MinimumSpeed=Mathf.Max(travel.Tuning.MinimumSpeed,.8f*rotation);
+            if(context.Reverse)ConfigureReverseCohesion(travel.Tuning);
             if(travel.Forward.sqrMagnitude<.01f)travel.Forward=Vector3.forward;
             if(nextCohesionId==int.MaxValue)nextCohesionId=1;
             travel.Watched=CohesionDebugNext.Remove(context.Owner);
@@ -307,22 +354,31 @@ namespace Si_Formation
             TraceCohesion(travel,"created: "+travel.Members.Count+" accepted moves, "+travel.Tuning.Range+", "+
                 Vector3.Distance(Flat(travel.Anchor),Flat(travel.Origin)).ToString("0",CultureInfo.InvariantCulture)+"m"+(travel.Queued?", queued":"")+
                 (travel.Drag?", drag reform":"")+(travel.Reform&&!context.DestinationLocal?", membership changed: fresh formation":"")+
+                (travel.Reverse?", strict reverse snapshot (fixed slot rotation)":"")+
                 (travel.Turned?", turn "+travel.TurnAngle.ToString("0",CultureInfo.InvariantCulture)+"deg, rotation relief "+rotation.ToString("0.00",CultureInfo.InvariantCulture):"")+
                 (context.DestinationLocal?", destination-radius cohort, "+context.IgnoredGround+" ground units independent":""));
+            if(context.Reverse&&travel.Members.Count!=context.Candidates.Count)
+            {
+                ReleaseCohesion(travel,"reverse snapshot only partly accepted; strict pacing released",false);
+                Reply(context.Owner,"Native reverse accepted "+travel.Members.Count+" of "+context.Candidates.Count+
+                    " snapshot members; strict pacing released. Accepted native orders remain active.");
+                return;
+            }
             if(skip!=null||travel.Members.Count<2){ReleaseCohesion(travel,skip??"fewer than two accepted moves",false);return;}
             Vector3 centre=travel.Members.Aggregate(Vector3.zero,(sum,m)=>sum+Flat(m.Unit.transform.position))/travel.Members.Count;
             travel.InitialRadius=travel.Members.Max(m=>Vector3.Distance(Flat(m.Unit.transform.position),centre));
-            if(!context.DestinationLocal&&(context.Drag||context.RememberedDrag)&&travel.Members.Count==context.Candidates.Count&&
-                travel.Members.All(member=>FormationEligible(member.Unit)&&member.Unit.Team==travel.Team))
+            if(!context.DestinationLocal&&(context.Drag||context.RememberedDrag||context.Reverse)&&travel.Members.Count==context.Candidates.Count&&
+                travel.Members.All(member=>FormationEligible(member.Unit)&&member.Unit.Team==travel.Team)&&ValidCapturedLayout(context,travel.Members,travel.Watched))
             {
-                var layout=new CohesionLayout{Team=travel.Team,Time=now,Forward=context.Heading,DragOrigin=true};
+                var layout=new CohesionLayout{Team=travel.Team,Time=now,Forward=context.Heading,DragOrigin=!context.Reverse||context.RememberedDrag,
+                    OriginalCount=context.RememberedDrag?context.OriginalCount:travel.Members.Count};
                 travel.Layout=layout;
                 foreach(var member in travel.Members){layout.Offsets[member.Unit]=member.Offset;layout.Orders[member.Unit]=member;}
                 foreach(var member in travel.Members)CohesionLayouts[member.Unit]=layout;
             }
             else if(context.RememberedDrag)travel.Reform=true;
             if(travel.Watched&&travel.Owner)Reply(travel.Owner,"Watching cohesion group #"+travel.Id+"; use /cohesiondebug "+travel.Id+" for its history.");
-            if(Vector3.Distance(Flat(context.Anchor),Flat(context.Origin))>CohesionValueFor(context.Team,"MaximumRange"))
+            if(!context.Reverse&&Vector3.Distance(Flat(context.Anchor),Flat(context.Origin))>CohesionValueFor(context.Team,"MaximumRange"))
             {ReleaseCohesion(travel,"move exceeds maximum cohesion range",false);return;}
             // Seed caps immediately: a short Fast move can finish before the next
             // ordinary controller tick. Queued orders still wait for their IDs.
@@ -332,14 +388,23 @@ namespace Si_Formation
         private static bool CurrentCohesionOrder(CohesionMember member)
         {
             var unit=member.Unit;var processor=member.Processor;
-            return unit&&processor&&unit.OrderAgent==processor&&processor.Orders.Count>0&&processor.Orders[0] is AIMoveOrder order&&
-                order.Id==member.OrderId&&order.MoveSpeed==member.Mode&&FlatDistanceSq(order.WorldPosition,member.Target)<1;
+            return unit&&processor&&unit.OrderAgent==processor&&processor.Orders.Count>0&&
+                CohesionMoveData(processor.Orders[0],member.Reverse,out var destination,out var mode)&&
+                processor.Orders[0].Id==member.OrderId&&mode==member.Mode&&FlatDistanceSq(destination,member.Target)<1;
+        }
+        private static bool CohesionMoveData(AIOrder order,bool reverse,out Vector3 destination,out AgentMoveSpeed mode)
+        {
+            destination=Vector3.zero;mode=AgentMoveSpeed.Normal;
+            if(reverse&&order is AIReverseOrder backward){destination=backward.WorldPosition;mode=backward.MoveSpeed;return true;}
+            if(!reverse&&order is AIMoveOrder forward){destination=forward.WorldPosition;mode=forward.MoveSpeed;return true;}
+            return false;
         }
         private static bool PendingCohesionOrder(CohesionMember member)
         {
             if(!member.Unit||!member.Processor||member.Unit.OrderAgent!=member.Processor)return false;
             foreach(var entry in member.Processor.Orders)
-                if(entry is AIMoveOrder move&&move.Id==member.OrderId&&FlatDistanceSq(move.WorldPosition,member.Target)<1)return true;
+                if(entry.Id==member.OrderId&&CohesionMoveData(entry,member.Reverse,out var destination,out var mode)&&
+                    mode==member.Mode&&FlatDistanceSq(destination,member.Target)<1)return true;
             return false;
         }
         private static void ClearCohesionCap(CohesionMember member)
@@ -358,17 +423,18 @@ namespace Si_Formation
             if(!CohesionPathReady(member)){member.CapReason="new path pending";return;}
             if(path.IsPathPaused||path.EngagementHold||agent.IsMoveProblem||agent.IsStuck)
             {member.CapReason="native movement hold";return;}
-            if(agent.AgentAiming!=null&&agent.AgentAiming.AimTarget!=null){member.CapReason="combat aiming";return;}
             __result=__result>=0?Mathf.Min(__result,member.Cap):member.Cap;
             member.AppliedCap=__result;member.LastCapApplied=Time.time;member.CapReason="applied";
         }
-        private static void ObserveCohesionOrder(AIOrderProcessor processor,bool accepted,bool calledByAI,CohesionOrderStamp stamp)
+        private static void ObserveCohesionOrder(AIOrderProcessor processor,bool accepted,bool calledByAI,CohesionOrderStamp stamp,OrderTarget target)
         {
             if(!stamp.Captured||!accepted||!(processor.Owner is Unit unit))return;
             bool replaced=!stamp.HadOrder||processor.Orders.Count==0||processor.Orders[0].Id!=stamp.HeadId;
             // Layout intention outlives transient native AI replans and speed
             // ownership. A real replacement invalidates only the snapshot it saw.
-            if(replaced&&!calledByAI&&CohesionLayouts.TryGetValue(unit,out var current)&&ReferenceEquals(current,stamp.Layout))
+            bool ownFallback=activeCohesion!=null&&activeCohesion.PreservedLayout!=null&&ReferenceEquals(activeCohesion.PreservedLayout,stamp.Layout)&&
+                activeLayout!=null&&activeLayout.Points.TryGetValue(unit,out var fallback)&&FlatDistanceSq(target.Position,fallback)<1;
+            if(replaced&&!calledByAI&&!ownFallback&&CohesionLayouts.TryGetValue(unit,out var current)&&ReferenceEquals(current,stamp.Layout))
                 InvalidateCohesionLayout(current);
             if(!CohesionCaps.TryGetValue(unit,out var member)||CurrentCohesionOrder(member))return;
             // A queued append leaves the head ID intact and therefore retains ownership.
@@ -418,6 +484,8 @@ namespace Si_Formation
         }
         private static void TickCohesionGroup(CohesionTravel group,float now)
         {
+            if(group.DestinationLocal&&!DestinationLocalCohesionEnabled)
+            {ReleaseCohesion(group,"destination-local cohesion switched off",false);return;}
             float dt=Mathf.Clamp(now-group.LastTick,0,2);group.LastTick=now;
             if(group.Layout!=null)group.Layout.Time=now;
             if(!group.Owner||!group.Owner.IsCommander||group.Owner.Team!=group.Team)
@@ -459,7 +527,7 @@ namespace Si_Formation
                 if(group.FirstActive<0)group.FirstActive=now;
                 if(!member.Started){member.Started=true;member.StartedAt=now;member.LastPosition=unit.transform.position;member.LastProgress=now;member.LastRemaining=member.Direct;}
                 member.Remaining=CohesionRoute(member,out bool routeReady);
-                member.FreeSpeed=CohesionModeSpeed(unit,member.Mode);
+                member.FreeSpeed=CohesionModeSpeed(unit,member.Mode,group.Reverse);
                 member.RouteReady=routeReady;
                 if(routeReady&&!member.RouteInitialized)
                 {
@@ -488,7 +556,6 @@ namespace Si_Formation
                 bool progress=member.Remaining<member.LastRemaining-progressDistance;
                 if(moving||progress){member.LastProgress=now;member.LastPosition=unit.transform.position;member.LastRemaining=member.Remaining;}
                 member.Obstructed=path.IsPathPaused||path.EngagementHold||agent.IsMoveProblem||agent.IsStuck||
-                    (agent.AgentAiming!=null&&agent.AgentAiming.AimTarget!=null)||
                     (routeReady&&member.Remaining>Mathf.Max(10,member.Direct)*CohesionControl(group,"PathDetourRatio"));
                 // Deliberate slow pacing must not look like an obstruction.
                 float expected=member.Cap>=0?Mathf.Min(member.FreeSpeed,member.Cap):member.FreeSpeed;
@@ -569,7 +636,7 @@ namespace Si_Formation
             if(group.Phase==CohesionPhase.Turning&&now>=group.TurnUntil)
             {
                 int displaced=holdSet.Count(m=>Vector3.Distance(Flat(m.Unit.transform.position),reference+m.Offset)>
-                    Mathf.Max(group.Tuning.HoldError,Radius(m.Unit)*1.5f));
+                    CohesionHoldTolerance(group,m));
                 bool settled=holdSet.Count>=2&&100f*displaced/holdSet.Count<group.Tuning.HoldBreakPercent&&group.LostPercent<group.Tuning.HoldBreakPercent&&
                     100f*holdSet.Count(m=>m.Obstructed||m.Stuck)/holdSet.Count<group.Tuning.ObstructedPercent&&!persistentSpread;
                 group.Phase=settled?CohesionPhase.Holding:CohesionPhase.Arrival;
@@ -579,7 +646,7 @@ namespace Si_Formation
             {
                 group.NextHold=now+group.Tuning.HoldCorrectionInterval;
                 int displaced=holdSet.Count(m=>Vector3.Distance(Flat(m.Unit.transform.position),reference+m.Offset)>
-                    Mathf.Max(group.Tuning.HoldError,Radius(m.Unit)*1.5f));
+                    CohesionHoldTolerance(group,m));
                 bool bad=100f*displaced/holdSet.Count>=group.Tuning.HoldBreakPercent||group.LostPercent>=group.Tuning.HoldBreakPercent||
                     100f*holdSet.Count(m=>m.Obstructed||m.Stuck)/holdSet.Count>=group.Tuning.ObstructedPercent||persistentSpread;
                 if(bad)
@@ -614,9 +681,9 @@ namespace Si_Formation
                 if(group.Phase==CohesionPhase.Holding)
                 {
                     float error=Vector3.Dot(reference+member.Offset-Flat(member.Unit.transform.position),group.Forward);
-                    float tolerance=Mathf.Max(group.Tuning.HoldError,Radius(member.Unit)*1.5f);
-                    float correction=Mathf.Sign(error)*Mathf.Max(0,Mathf.Abs(error)-tolerance)*.5f;
-                    float hold=Mathf.Lerp(member.FreeSpeed,Mathf.Clamp(pace+correction,.05f,member.FreeSpeed),group.Tuning.HoldStrength);
+                    float tolerance=CohesionHoldTolerance(group,member);
+                    float correction=Mathf.Sign(error)*Mathf.Max(0,Mathf.Abs(error)-tolerance)*(group.Reverse?2:.5f);
+                    float hold=Mathf.Lerp(member.FreeSpeed,Mathf.Clamp(pace+correction,group.Reverse?0:.05f,member.FreeSpeed),group.Tuning.HoldStrength);
                     desired=Mathf.Min(desired,hold);
                 }
                 desired=Mathf.Clamp(desired,member.FreeSpeed*group.Tuning.MinimumSpeed,member.FreeSpeed);
@@ -643,6 +710,8 @@ namespace Si_Formation
             foreach(var member in members)radius=Mathf.Max(radius,Vector3.Distance(Flat(member.Unit.transform.position),centre));
             return radius;
         }
+        private static float CohesionHoldTolerance(CohesionTravel group,CohesionMember member)
+            =>Mathf.Max(group.Tuning.HoldError,Radius(member.Unit)*(group.Reverse?.1f:1.5f));
         private static float MedianCohesion(float[] values){Array.Sort(values);return values[values.Length/2];}
         private static void TraceCohesion(CohesionTravel group,string message)
         {
@@ -666,7 +735,7 @@ namespace Si_Formation
             // still current/queued, then apply normal post-move retention.
             foreach(var layout in CohesionLayouts.Values.Distinct())
             {
-                if(!layout.Invalidated&&layout.Offsets.Keys.Any(unit=>!FormationEligible(unit)||unit.Team!=layout.Team))
+                if(!layout.Invalidated&&!CohesionLayoutMembershipValid(layout))
                     InvalidateCohesionLayout(layout);
                 if(LayoutMovePending(layout))layout.Time=now;
             }
