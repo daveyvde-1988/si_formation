@@ -34,7 +34,6 @@ namespace Si_Formation
             internal int IgnoredGround;
             internal int AcceptedReverseInfantryMoves;
             internal Dictionary<Unit,ReverseInfantryMove> ReverseInfantryMoves;
-            internal CohesionLayout PreservedLayout;
             internal Dictionary<Unit,Vector3> LocalPoints;
             internal string Skip;
             internal readonly HashSet<Unit> Candidates=new HashSet<Unit>();
@@ -228,7 +227,6 @@ namespace Si_Formation
                 }
                 context.Origin=planned/units.Count;
             }
-            float smallest=units.Min(Radius);
             Vector3 travel=Flat(context.Anchor-context.Origin);
             context.Unpaced=travel.magnitude>CohesionValueFor(context.Team,"MaximumRange");
             context.Heading=drag?Vector3.Cross(Flat(lineEnd-position).normalized,Vector3.up):FormationHeading(units,travel);
@@ -246,62 +244,10 @@ namespace Si_Formation
                 if(!BuildDestinationArrivalLayout(context,units,ground,selected.Where(u=>IsFormationAir(u)&&FormationEligible(u)).ToList(),position,lineEnd))
                 {context.Skip="destination arrival layout has insufficient valid slots";context.Candidates.Clear();}
             }
-            else if(!drag&&activeLayout!=null)
+            else if(!drag)
             {
-                // Only a deliberately dragged layout may be translated. Casualty
-                // holes remain in place through 40% losses of its original members.
-                // Ordinary clicks and rally parking never snapshot current gaps.
-                CohesionLayouts.TryGetValue(units[0],out var remembered);
-                bool reuse=!context.Unpaced&&!context.Reform&&remembered!=null&&remembered.DragOrigin&&!remembered.Invalidated&&remembered.Team==context.Team&&
-                    (LayoutMovePending(remembered)||Time.time-remembered.Time<=CohesionValueFor(context.Team,"Retention"))&&
-                    CohesionLayoutSelectionMatches(remembered,units);
-                if(!reuse)
-                {
-                    context.Reform=true;
-                    context.Heading=travel.sqrMagnitude<.001f?Vector3.forward:travel.normalized;
-                    return context;
-                }
-                context.RememberedDrag=true;
-                context.OriginalCount=Math.Max(remembered.OriginalCount,remembered.Offsets.Count);
-                Vector3 oldHeading=remembered.Forward;
-                if(oldHeading.sqrMagnitude<.01f)oldHeading=FormationHeading(units,travel);
-                context.Heading=oldHeading;
-                if(travel.sqrMagnitude>=1)context.Heading=travel.normalized;
-                float yaw=Vector3.SignedAngle(oldHeading,context.Heading,Vector3.up);
-                Quaternion turn=Quaternion.AngleAxis(yaw,Vector3.up);
-                context.TurnAngle=Mathf.Abs(yaw);
-                context.Turned=Mathf.Abs(yaw)>5;
-                var points=new Dictionary<Unit,Vector3>();
-                foreach(var unit in units)
-                {
-                    Vector3 offset=remembered.Offsets[unit];
-                    Vector3 desired=context.Anchor+turn*Flat(offset);
-                    if(!TerrainProjection.TryProject(unit,desired,out var target))
-                    {
-                        context.PreservedLayout=remembered;
-                        remembered.Time=Time.time;
-                        TraceLayoutFailure(context,"projection",unit,desired,null);
-                        context.Skip="preserved layout could not be projected";context.Candidates.Clear();return context;
-                    }
-                    points[unit]=target;
-                }
-                // Terrain projection can snap sideways. Retain physical clearance.
-                for(int i=0;i<units.Count;i++)for(int j=i+1;j<units.Count;j++)
-                {
-                    float clearance=Radius(units[i])+Radius(units[j])+.5f;
-                    if(FlatDistanceSq(points[units[i]],points[units[j]])+.001f<clearance*clearance)
-                    {
-                        context.PreservedLayout=remembered;
-                        remembered.Time=Time.time;
-                        TraceLayoutFailure(context,"clearance",units[i],context.Anchor+turn*Flat(remembered.Offsets[units[i]]),points[units[i]],
-                            units[j],points[units[j]],clearance);
-                        context.Skip="preserved layout loses physical clearance";context.Candidates.Clear();return context;
-                    }
-                }
-                AddAirFormationSlots(selected.Where(u=>IsFormationAir(u)&&FormationEligible(u)).ToList(),points,context.Anchor,
-                    context.Heading,activeLayout.Settings,activeLayout.Scale);
-                activeLayout.Points=points;
-                activeLayout.Pitch=Mathf.Max(1,smallest*2);
+                context.Reform=true;
+                context.Heading=travel.sqrMagnitude<.001f?Vector3.forward:travel.normalized;
             }
             return context;
         }
@@ -432,9 +378,7 @@ namespace Si_Formation
             bool replaced=!stamp.HadOrder||processor.Orders.Count==0||processor.Orders[0].Id!=stamp.HeadId;
             // Layout intention outlives transient native AI replans and speed
             // ownership. A real replacement invalidates only the snapshot it saw.
-            bool ownFallback=activeCohesion!=null&&activeCohesion.PreservedLayout!=null&&ReferenceEquals(activeCohesion.PreservedLayout,stamp.Layout)&&
-                activeLayout!=null&&activeLayout.Points.TryGetValue(unit,out var fallback)&&FlatDistanceSq(target.Position,fallback)<1;
-            if(replaced&&!calledByAI&&!ownFallback&&CohesionLayouts.TryGetValue(unit,out var current)&&ReferenceEquals(current,stamp.Layout))
+            if(replaced&&!calledByAI&&CohesionLayouts.TryGetValue(unit,out var current)&&ReferenceEquals(current,stamp.Layout))
                 InvalidateCohesionLayout(current);
             if(!CohesionCaps.TryGetValue(unit,out var member)||CurrentCohesionOrder(member))return;
             // A queued append leaves the head ID intact and therefore retains ownership.

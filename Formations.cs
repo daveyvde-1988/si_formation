@@ -8,7 +8,7 @@ using Silica.AI;
 using SilicaAdminMod;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "3.10.0", "Local")]
+[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "3.11.0", "Local")]
 [assembly: MelonGame("Bohemia Interactive", "Silica")]
 [assembly: MelonOptionalDependencies("Admin Mod")]
 namespace Si_Formation
@@ -33,7 +33,7 @@ namespace Si_Formation
         {
             try
             {
-                foreach(string name in new[]{"formation","formationspace","rallyspace","scout","movementfix","sizeinfluence","alienspread","fpsspace","fpsdistance","fpsallowance","groupcohesion","cohesion","aliengroupcohesion","aliencohesion","cohesiondebug","travelcoverdisabler","destinationcohesion"})
+                foreach(string name in new[]{"formation","formationspace","rallyspace","scout","movementfix","sizeinfluence","alienspread","fpsspace","fpsdistance","fpsallowance","groupcohesion","cohesion","aliengroupcohesion","aliencohesion","cohesiondebug","travelcoverdisabler","destinationcohesion","waypointwait"})
                     if(PlayerMethods.FindPlayerCommandFromString(name)!=null||AdminMethods.FindAdminCommandFromString(name)!=null)
                         throw new InvalidOperationException("Command already registered: "+name+". Remove the old formation mod.");
                 LoadServerSettings();
@@ -60,6 +60,8 @@ namespace Si_Formation
                 AdminMethods.RegisterAdminCommand("movementfix",MovementFixCommand,Power.Generic,"Server grouped movement speed fix, on|off|status.");
                 AdminMethods.RegisterAdminCommand("destinationcohesion",DestinationCohesionCommand,Power.Generic,
                     "Nearby destination cohesion fallback, on|off|status; OFF by default.");
+                AdminMethods.RegisterAdminCommand("waypointwait",WaypointWaitCommand,Power.Generic,
+                    "Waypoint regroup grace: near|far <seconds>|status.");
                 AdminMethods.RegisterAdminCommand("sizeinfluence",(p,a)=>TuningCommand(p,a,"sizeinfluence"),Power.Generic,"Server large-unit influence, 0..100%.");
                 AdminMethods.RegisterAdminCommand("alienspread",(p,a)=>TuningCommand(p,a,"alienspread"),Power.Generic,"Server Alien spacing scale, 0..100%.");
                 AdminMethods.RegisterAdminCommand("fpsspace",(p,a)=>TuningCommand(p,a,"fpsspace"),Power.Generic,"Server FPS spacing, 0..100%.");
@@ -105,7 +107,10 @@ namespace Si_Formation
                 }
             }
             if(commander&&(remote||Player.CurrentPlayer==commander)&&!target&&!isAttack&&(!forcedOrder||forcedOrder is ReverseOrderDefinition))
-                activeWaypoint=PrepareWaypoint(objects,commander,worldPosition);
+            {
+                if(!useLine&&!forcedOrder)ForgetClickLayout(objects);
+                activeWaypoint=PrepareWaypoint(objects,commander,useLine?(worldPosition+lineEnd)*.5f:worldPosition,moveSpeed);
+            }
             if(forcedOrder)
             {
                 if(forcedOrder is ReverseOrderDefinition&&commander&&(remote||Player.CurrentPlayer==commander)&&!target&&!isAttack)

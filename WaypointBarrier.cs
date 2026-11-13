@@ -19,13 +19,16 @@ namespace Si_Formation
             internal uint Id;
             internal uint[] Before;
             internal Vector3 Destination;
-            internal bool Arrived,Removed;
+            internal bool Arrived,Removed,Included=true,Reverse;
+            internal AgentMoveSpeed Mode;
+            internal float NominalSpeed;
             internal WaypointBarrier Barrier;
         }
         private sealed class WaypointDispatch
         {
             internal Player Owner;
             internal Vector3 Anchor;
+            internal AgentMoveSpeed Mode;
             internal bool Watched;
             internal readonly Dictionary<Unit,WaypointMember> Members=new Dictionary<Unit,WaypointMember>();
         }
@@ -34,8 +37,11 @@ namespace Si_Formation
             internal int Id,LastWaiting=-1;
             internal Player Owner;
             internal Team Team;
-            internal bool Watched,Open;
+            internal bool Watched,Open,Advance,Rebased,GraceStarted;
             internal float NextSweep;
+            internal float Activated=-1,Eta,Deadline,Grace;
+            internal Vector3 Anchor,Centre;
+            internal string Reason;
             internal List<WaypointMember> Members;
         }
         private static WaypointDispatch activeWaypoint;
@@ -55,22 +61,22 @@ namespace Si_Formation
                 prefix:new HarmonyMethod(typeof(WaypointBatchScope),nameof(WaypointBatchScope.Before)){priority=1000},
                 finalizer:new HarmonyMethod(typeof(WaypointBatchScope),nameof(WaypointBatchScope.End)){priority=HarmonyLib.Priority.Last});
         }
-        private static WaypointDispatch PrepareWaypoint(IReadOnlyList<BaseGameObject> objects,Player owner,Vector3 anchor)
+        private static WaypointDispatch PrepareWaypoint(IReadOnlyList<BaseGameObject> objects,Player owner,Vector3 anchor,AgentMoveSpeed mode)
         {
             if(!owner||!owner.IsCommander)return null;
-            var dispatch=new WaypointDispatch{Owner=owner,Anchor=anchor,Watched=CohesionDebugNext.Contains(owner)};
+            var dispatch=new WaypointDispatch{Owner=owner,Anchor=anchor,Mode=mode,Watched=CohesionDebugNext.Contains(owner)};
             foreach(var unit in objects.OfType<Unit>().Where(unit=>unit&&!unit.IsDestroyed&&unit.Team==owner.Team&&unit.AIControlled&&
                 !unit.PlayerControlled&&!unit.ControlledBy&&!unit.InCompartment&&!(unit.Driver&&unit.Driver.ControlledBy)&&
                 unit.OrderAgent&&(unit.OrderAgent.Receiver is IMoveOrderReceiver||unit.OrderAgent.Receiver is IReverseOrderReceiver)&&
                 !(unit is Vehicle vehicle&&vehicle.HasForceMove)).Distinct())
-                dispatch.Members[unit]=new WaypointMember{Unit=unit,Processor=unit.OrderAgent,Destination=anchor,
+                dispatch.Members[unit]=new WaypointMember{Unit=unit,Processor=unit.OrderAgent,Destination=anchor,Mode=mode,
                     Before=unit.OrderAgent.Orders.Select(order=>order.Id).ToArray()};
-            return dispatch.Members.Count>=2?dispatch:null;
+            return dispatch.Members.Count>=2||dispatch.Members.Count==1&&IsFormationAir(dispatch.Members.Keys.First())?dispatch:null;
         }
         private static class WaypointBatchScope
         {
             internal static void Before(OrderDefinition definition,IReadOnlyList<BaseGameObject> objects,
-                IReadOnlyList<Vector3> points,Target clickObject,out WaypointDispatch __state)
+                IReadOnlyList<Vector3> points,Target clickObject,AgentMoveSpeed moveSpeed,out WaypointDispatch __state)
             {
                 __state=activeWaypoint;activeWaypoint=null;
                 if(!Active||!Game.GetIsServer()||objects==null||points==null||points.Count!=1||clickObject||
@@ -78,7 +84,8 @@ namespace Si_Formation
                 var first=objects.FirstOrDefault(obj=>obj&&!obj.IsDestroyed);var owner=first?Commander(first.Team):null;
                 var sender=NetworkLayer.GetRequestSender();
                 if(!owner||(sender?sender!=owner:Player.CurrentPlayer!=owner))return;
-                activeWaypoint=PrepareWaypoint(objects,owner,points[0]);
+                if(definition is MoveOrderDefinition)ForgetClickLayout(objects);
+                activeWaypoint=PrepareWaypoint(objects,owner,points[0],moveSpeed);
             }
             internal static Exception End(Exception __exception,WaypointDispatch __state)
             {
@@ -108,13 +115,15 @@ namespace Si_Formation
                         FlatDistanceSq(__1.Position,infantry.Destination)<1;
                 if(!ownPoint||FlatDistanceSq(order.GetPosition(),__1.Position)>1)return;
                 member.Order=order;member.Id=order.Id;member.Destination=order.GetPosition();
+                member.Reverse=order is AIReverseOrder;
+                member.Mode=order is AIMoveOrder move?move.MoveSpeed:((AIReverseOrder)order).MoveSpeed;
             }
         }
         private static void FinishWaypoint(WaypointDispatch dispatch)
         {
             if(dispatch==null||!Active)return;
             var barrier=new WaypointBarrier{Id=nextWaypointId++,Owner=dispatch.Owner,Team=dispatch.Owner.Team,
-                Watched=dispatch.Watched,Members=dispatch.Members.Values.ToList()};
+                Watched=dispatch.Watched,Anchor=dispatch.Anchor,Members=dispatch.Members.Values.ToList()};
             if(nextWaypointId==int.MaxValue)nextWaypointId=1;
             foreach(var member in barrier.Members)
             {
@@ -132,7 +141,7 @@ namespace Si_Formation
             waypointBarriers.Add(barrier);
             int missing=barrier.Members.Count(member=>!member.Removed&&member.Order==null);
             if(missing>0)Reply(dispatch.Owner,"Waypoint #"+barrier.Id+" waits for "+missing+
-                " members without an accepted move. Replace/cancel their orders if they cannot reach it.");
+                " members without an accepted move, subject to the regroup deadline.");
             SweepWaypoint(barrier,true);
         }
         private static class WaypointEvaluation
@@ -143,14 +152,25 @@ namespace Si_Formation
         private static void EvaluateWaypoint(AIOrder order,ref bool result)
         {
             if(!Active||!Game.GetIsServer()||!waypointOrders.TryGetValue(order,out var member)||order.Id!=member.Id)return;
-            SweepWaypoint(member.Barrier,false);
-            if(!member.Removed)result=member.Barrier.Open&&member.Arrived;
+            if(!CurrentWaypoint(member))return;
+            bool arrived=IsFormationAir(member.Unit)?HorizontalAirArrival(member):result;
+            bool changed=arrived&&!member.Arrived;
+            if(changed)MarkWaypointArrival(member,IsFormationAir(member.Unit)?"horizontal air arrival":"native completion");
+            SweepWaypoint(member.Barrier,changed);
+            if(member.Removed)return;
+            if(member.Barrier.Open)
+            {
+                if(member.Barrier.Advance)result=true;
+                RemoveWaypointMapping(member);
+            }
+            else result=false;
         }
         private static void SweepWaypoint(WaypointBarrier barrier,bool force)
         {
             if(barrier.Open||!force&&Time.time<barrier.NextSweep)return;
             barrier.NextSweep=Time.time+.1f;
-            if(!barrier.Owner||!barrier.Owner.IsCommander||barrier.Owner.Team!=barrier.Team){OpenWaypoint(barrier);return;}
+            if(!barrier.Owner||!barrier.Owner.IsCommander||barrier.Owner.Team!=barrier.Team)
+            {OpenWaypoint(barrier,"ownership released",false);return;}
             int waiting=0,retained=0;WaypointMember last=null;
             foreach(var member in barrier.Members)
             {
@@ -165,34 +185,50 @@ namespace Si_Formation
                     // Native AI interruption is not an arrival or a casualty.
                     // Keep this living member blocking the other owned queues;
                     // a commanded replacement is handled by the order observer.
-                    if(!member.Arrived){waiting++;last=member;}
                     continue;
                 }
                 if(member.Order!=null)retained++;
-                if(!member.Arrived&&unit.AIAgent&&member.Order!=null&&processor.Orders.Count>0&&ReferenceEquals(processor.Orders[0],member.Order)&&
-                    FlatDistanceSq(unit.transform.position,member.Destination)<=Mathf.Pow(Mathf.Max(.1f,unit.AIAgent.FinalWaypointThreshold),2))
-                    member.Arrived=true;
-                if(!member.Arrived){waiting++;last=member;}
+                if(!member.Arrived&&CurrentWaypoint(member)&&IsFormationAir(unit)&&HorizontalAirArrival(member))
+                    MarkWaypointArrival(member,"horizontal air arrival");
             }
+            if(retained==0){OpenWaypoint(barrier,"no owned waypoint orders",false);return;}
+            if(barrier.Activated<0)
+            {
+                if(!barrier.Members.Any(CurrentWaypoint))return;
+                ActivateRegroup(barrier);
+                if(barrier.Open)return;
+            }
+            RebaseRegroup(barrier);
+            if(!barrier.GraceStarted&&Time.time>=barrier.Eta)
+            {
+                barrier.GraceStarted=true;
+                if(CohesionDebugEnabled||barrier.Watched)MelonLogger.Msg("[Waypoint #"+barrier.Id+"] regroup countdown started; remaining="+
+                    MovementNumber(Mathf.Max(0,barrier.Deadline-Time.time))+"s");
+            }
+            foreach(var member in barrier.Members)
+                if(!member.Removed&&member.Included&&!member.Arrived){waiting++;last=member;}
             if(waiting!=barrier.LastWaiting&&(CohesionDebugEnabled||barrier.Watched))
                 MelonLogger.Msg("[Waypoint #"+barrier.Id+"] waiting="+waiting+"/"+barrier.Members.Count+
                     (last!=null?" last="+MovementUnitName(last.Unit)+" target="+MovementPoint(last.Destination)+
-                        " accepted="+(last.Order!=null):"; all surviving members arrived"));
+                        " accepted="+(last.Order!=null):"; included members completed"));
             barrier.LastWaiting=waiting;
-            if(waiting==0||retained==0)OpenWaypoint(barrier);
+            if(waiting==0)OpenWaypoint(barrier,"native completion of included members",true);
+            else if(Time.time>=barrier.Deadline)OpenWaypoint(barrier,"regroup timeout",true);
         }
-        private static void OpenWaypoint(WaypointBarrier barrier)
+        private static void OpenWaypoint(WaypointBarrier barrier,string reason,bool advance)
         {
-            barrier.Open=true;
-            foreach(var member in barrier.Members)
-                if(member.Order!=null&&waypointOrders.TryGetValue(member.Order,out var current)&&ReferenceEquals(current,member))
-                    waypointOrders.Remove(member.Order);
-            waypointBarriers.Remove(barrier);
+            barrier.Open=true;barrier.Reason=reason;barrier.Advance=advance;
+            if(CohesionDebugEnabled||barrier.Watched)
+                MelonLogger.Msg("[Waypoint #"+barrier.Id+"] release="+reason+" outstanding="+
+                    barrier.Members.Count(member=>!member.Removed&&member.Included&&!member.Arrived)+
+                    " excluded="+barrier.Members.Count(member=>!member.Removed&&!member.Included));
+            CleanupWaypoint(barrier);
         }
         private static void TickWaypointState()
         {
             if(!Active){ClearWaypointState();return;}
-            foreach(var barrier in waypointBarriers.ToArray())SweepWaypoint(barrier,false);
+            foreach(var barrier in waypointBarriers.ToArray())
+                if(barrier.Open)CleanupWaypoint(barrier);else SweepWaypoint(barrier,false);
         }
         private static void ClearWaypointState(){waypointOrders.Clear();waypointBarriers.Clear();activeWaypoint=null;}
     }

@@ -26,7 +26,7 @@ namespace Si_Formation
                 rearEdge=ground.Min(item=>Vector3.Dot(item.Value-anchor,forward)-Radius(item.Key));
                 minX=ground.Min(item=>Vector3.Dot(item.Value-anchor,right)-Radius(item.Key));
                 maxX=ground.Max(item=>Vector3.Dot(item.Value-anchor,right)+Radius(item.Key));
-                airAnchor+=forward*(rearEdge-250);
+                airAnchor+=forward*(rearEdge-50);
             }
             foreach(var unit in aircraft)points.Remove(unit);
             var units=aircraft.Where(FormationEligible).OrderByDescending(unit=>Vector3.Dot(unit.transform.position,forward)).ToList();
@@ -47,7 +47,7 @@ namespace Si_Formation
                     Vector3 desired=airAnchor+right*x-forward*(start/columns*cellDepth);
                     if(TryAirFormationPoint(unit,desired,out var point)&&accepted.All(other=>
                         FlatDistanceSq(point,other.Value)>=Mathf.Pow(Radius(unit)+Radius(other.Key)+.5f,2))&&
-                        (ground.Length==0||Vector3.Dot(point-anchor,forward)<=rearEdge-250+.1f&&
+                        (ground.Length==0||Vector3.Dot(point-anchor,forward)<=rearEdge-50+.1f&&
                         Vector3.Dot(point-anchor,right)>=minX-.1f&&Vector3.Dot(point-anchor,right)<=maxX+.1f))
                     {
                         points[unit]=point;accepted.Add(new KeyValuePair<Unit,Vector3>(unit,point));

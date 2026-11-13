@@ -9,7 +9,7 @@ namespace Si_Formation
     public sealed partial class Formations
     {
         private const string SwitchGroup="General", DefaultGroup="Commander placement", AdvancedGroup="General", FpsGroup="FPS squads", RallyGroup="Rally", DiagnosticsGroup="Diagnostics";
-        private const string AdvancedDescription="Human and Alien cohesion each use one distance profile with 12 controls. Near/Far values interpolate from zero distance to MaximumRange (default 5000m); longer moves have no custom pacing or holding. Arrival pacing and remembered-formation holding have separate strength controls. Legacy Close/Medium/Long settings are ignored. Use /cohesion, /aliencohesion and /cohesiondebug next.";
+        private const string AdvancedDescription="Human and Alien cohesion each use one distance profile with 12 controls. Near/Far values interpolate from zero distance to MaximumRange (default 5000m); longer moves have no custom pacing or holding. Ordinary clicks use fresh placement and clear drag memory. Waypoint regroup grace has shared near/far controls. Legacy Close/Medium/Long settings are ignored. Use /cohesion, /aliencohesion, /waypointwait and /cohesiondebug next.";
 
         private static void FormationCommand(Player p,string args)
         {
@@ -50,7 +50,7 @@ namespace Si_Formation
         // handlers supply their own values/formatting; no layout or preference is created.
         private static void FormationStatus(Player p)
         {
-            Reply(p,"Si_Formation 3.10.0; server-wide configuration; enabled "+(ServerEnabled?"ON":"OFF")+"; effective "+(Active?"ON":"OFF")+".");
+            Reply(p,"Si_Formation 3.11.0; server-wide configuration; enabled "+(ServerEnabled?"ON":"OFF")+"; effective "+(Active?"ON":"OFF")+".");
             SpacingCommand(p,"/formationspace status");
             RallyCommand(p,"/rallyspace status");
             foreach(string command in new[]{"sizeinfluence","alienspread","fpsspace","fpsdistance","fpsallowance"})
@@ -58,6 +58,7 @@ namespace Si_Formation
             MovementFixCommand(p,"/movementfix status");
             TravelCoverCommand(p,"/travelcoverdisabler status");
             DestinationCohesionCommand(p,"/destinationcohesion status");
+            WaypointWaitCommand(p,"/waypointwait status");
             Reply(p,CohesionSummary(false));
             Reply(p,CohesionSummary(true));
             Reply(p,"FPS distance uses (5m + player radius) x "+Multiplier(ServerSettings.FpsDistance).ToString("0.###",CultureInfo.InvariantCulture)+"; physical clearance can increase it.");
@@ -87,6 +88,8 @@ namespace Si_Formation
             AddSlider(commands,"fpsallowance","FPS movement allowance",ServerSettings.FpsAllowance,DefaultFpsAllowance,"FPS formations: player displacement before repositioning; convoy threshold is twice this distance, minimum 10m.",1,"m",FpsGroup);
             AddSlider(commands,"rallyspace","Rally spacing",ServerSettings.Rally,DefaultRally,"Commander formations: parking spacing for newly produced units; physical clearance is retained.",group:RallyGroup);
             AddCohesionMenu(commands);
+            AddWaypointGraceSlider(commands,"near",WaypointGraceNear,5);
+            AddWaypointGraceSlider(commands,"far",WaypointGraceFar,15);
             AddCohesionDiagnostics(commands);
             // The original Si_ModUI_Server 1.4.4 drops command ui fields. Its data
             // passthrough retains these generic presentation hints for newer clients.
@@ -106,6 +109,14 @@ namespace Si_Formation
         {
             var row=AdminEntry(command,label,description,"checkbox",group);
             row["v"]=value?"on":"off";row["ch"]=new JArray(new JArray("on","ON"),new JArray("off","OFF"));
+            commands.Add(row);
+        }
+        private static void AddWaypointGraceSlider(JArray commands,string endpoint,float value,float defaultValue)
+        {
+            var row=AdminEntry("!waypointwait "+endpoint,"Waypoint regroup grace ("+endpoint+")",
+                "Seconds to wait after the shared ETA. Near/far interpolate using the existing faction MaximumRange. Shared by both factions.","slider",DefaultGroup);
+            row["v"]=CohesionNumber(value);
+            var ui=(JObject)row["ui"];ui["min"]=0;ui["max"]=120;ui["step"]=1;ui["unit"]="s";ui["default"]=CohesionNumber(defaultValue);
             commands.Add(row);
         }
         private static void AddSlider(JArray commands,string command,string label,int value,int defaultValue,string description,int minimum=0,string unit="%",string group=DefaultGroup)
