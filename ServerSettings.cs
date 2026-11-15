@@ -9,7 +9,10 @@ namespace Si_Formation
     public sealed partial class Formations
     {
         private static MelonPreferences_Category serverPreferences;
-        private static MelonPreferences_Entry<bool> enabledPreference,movementFixPreference;
+        private static MelonPreferences_Entry<bool> enabledPreference,movementFixPreference,destinationLocalCohesionPreference;
+        private static bool DestinationLocalCohesionEnabled;
+        private static MelonPreferences_Entry<float> waypointGraceNearPreference,waypointGraceFarPreference;
+        private static float WaypointGraceNear=5,WaypointGraceFar=15;
         private static readonly Dictionary<string,MelonPreferences_Entry<int>> tuningPreferences=new Dictionary<string,MelonPreferences_Entry<int>>();
         private static bool ServerEnabled=>enabledPreference?.Value??true;
 
@@ -21,6 +24,13 @@ namespace Si_Formation
             serverPreferences.SetFilePath(Path.Combine(directory,"si_formation_native.cfg"));
             enabledPreference=serverPreferences.CreateEntry("Enabled",true,description:"Server-wide formation tuning master switch.");
             movementFixPreference=serverPreferences.CreateEntry("MovementFix",DefaultMovementFix,description:"New grouped move/attack orders use each unit's own speed without cohesion slowdown.");
+            destinationLocalCohesionPreference=serverPreferences.CreateEntry("DestinationLocalCohesion",false,
+                description:"Enable the destination-local cohesion fallback for scattered or oversized selections. Uses each faction's DestinationRadius (700m by default); OFF by default.");
+            DestinationLocalCohesionEnabled=destinationLocalCohesionPreference.Value;
+            waypointGraceNearPreference=serverPreferences.CreateEntry("WaypointGraceNear",5f,description:"Regroup grace after ETA for a zero-distance waypoint, interpolating to the far value at the faction MaximumRange. Seconds, 0..120.");
+            waypointGraceFarPreference=serverPreferences.CreateEntry("WaypointGraceFar",15f,description:"Regroup grace after ETA at or beyond the faction MaximumRange. Seconds, 0..120.");
+            WaypointGraceNear=ReadWaypointGrace(waypointGraceNearPreference,5);
+            WaypointGraceFar=ReadWaypointGrace(waypointGraceFarPreference,15);
             ServerSettings.MovementFix=movementFixPreference.Value;
             ServerSettings.Spacing=LoadTuning("Spacing",DefaultSpacing,0,"Commander click/drag spacing percentage: 0=baseline, 30=3x, 100=10x.");
             ServerSettings.Rally=LoadTuning("Rally",DefaultRally,0,"Production rally spacing percentage: 0=baseline, 30=3x, 100=10x; physical clearance is retained.");
@@ -49,6 +59,9 @@ namespace Si_Formation
         {
             if(!DemandAdmin(p))return false;
             movementFixPreference.Value=ServerSettings.MovementFix;
+            destinationLocalCohesionPreference.Value=DestinationLocalCohesionEnabled;
+            waypointGraceNearPreference.Value=WaypointGraceNear;
+            waypointGraceFarPreference.Value=WaypointGraceFar;
             tuningPreferences["Spacing"].Value=ServerSettings.Spacing;
             tuningPreferences["Rally"].Value=ServerSettings.Rally;
             tuningPreferences["SizeInfluence"].Value=ServerSettings.SizeInfluence;
@@ -56,6 +69,8 @@ namespace Si_Formation
             tuningPreferences["FpsSpacing"].Value=ServerSettings.FpsSpacing;
             tuningPreferences["FpsDistance"].Value=ServerSettings.FpsDistance;
             tuningPreferences["FpsAllowance"].Value=ServerSettings.FpsAllowance;
+            SaveCohesionSettings();
+            SaveTravelCoverSettings();
             try{serverPreferences.SaveToFile(false);return true;}
             catch(Exception e)
             {
@@ -69,6 +84,51 @@ namespace Si_Formation
             if(!DemandAdmin(p))return false;
             enabledPreference.Value=enabled;
             return SaveSettings(p);
+        }
+        private static float ReadWaypointGrace(MelonPreferences_Entry<float> preference,float fallback)
+        {
+            float value=preference.Value;
+            if(float.IsNaN(value)||float.IsInfinity(value)||value<0||value>120)
+            {MelonLogger.Warning("Invalid waypoint grace; using "+fallback+" seconds.");value=fallback;}
+            preference.Value=value;return value;
+        }
+        private static void WaypointWaitCommand(Player p,string args)
+        {
+            if(!ready||!Game.GetIsServer()||!p)return;
+            string[] tokens=Argument(args).Split(new[]{' ','\t'},StringSplitOptions.RemoveEmptyEntries);
+            bool saved=true;
+            if(tokens.Length>0&&tokens[0]!="status")
+            {
+                if(!DemandAdmin(p))return;
+                if(tokens.Length!=2||(tokens[0]!="near"&&tokens[0]!="far")||
+                    !float.TryParse(tokens[1],System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var seconds)||
+                    float.IsNaN(seconds)||float.IsInfinity(seconds)||seconds<0||seconds>120)
+                {Reply(p,"/waypointwait near|far <0..120 seconds> | status");return;}
+                if(tokens[0]=="near")WaypointGraceNear=seconds;else WaypointGraceFar=seconds;
+                saved=SaveSettings(p);
+            }
+            Reply(p,"Waypoint regroup grace: near "+CohesionNumber(WaypointGraceNear)+"s, far "+CohesionNumber(WaypointGraceFar)+
+                "s; main-body cutoff 1000m. New waypoints capture these settings."+(saved?"":" Save failed; see server log."));
+        }
+        private static void DestinationCohesionCommand(Player p,string args)
+        {
+            if(!ready||!Game.GetIsServer()||!p)return;
+            string value=Argument(args);bool saved=true;
+            if(value=="on"||value=="off")
+            {
+                if(!DemandAdmin(p))return;
+                DestinationLocalCohesionEnabled=value=="on";
+                if(!DestinationLocalCohesionEnabled)
+                    foreach(var group in CohesionGroups)
+                        if(group.DestinationLocal&&group.Phase!=CohesionPhase.Released&&group.Phase!=CohesionPhase.Complete)
+                            ReleaseCohesion(group,"destination-local cohesion switched off",false);
+                saved=SaveSettings(p);
+            }
+            else if(value!=""&&value!="status"){Reply(p,"/destinationcohesion on|off|status");return;}
+            Reply(p,"Nearby destination cohesion "+(DestinationLocalCohesionEnabled?"ON":"OFF")+
+                "; Human radius "+CohesionNumber(CohesionFactionValue(false,"DestinationRadius"))+"m, Alien radius "+
+                CohesionNumber(CohesionFactionValue(true,"DestinationRadius"))+"m. Applies to scattered/oversized selections."+
+                (saved?"":" Save failed; see server log."));
         }
     }
 }

@@ -32,7 +32,11 @@ namespace Si_Formation
         private static Unit issuingUnit;
         private static bool rallyOrderAccepted;
         private static float nextRallyPrune;
-        private static bool Eligible(Unit u)=>FormationEligible(u)&&(!u.IsFlyingType||u.AIAgent is AIAirVehicleAgent)&&u.AIAgent.AgentPathfinding.PathfindingSeeker;
+        // Resource workers retain their native rally/auto-harvest pipeline, including Shrimp.
+        // The unit type also covers production before an agent has finished initializing.
+        private static bool RallyExcluded(Unit unit)=>unit&&((unit.ObjectInfo&&unit.ObjectInfo.UnitType==UnitType.Harvester)||
+            unit.AIAgent is AIHarvesterAgent||unit.AIAgent is AIAlienHarvesterAgent);
+        private static bool Eligible(Unit u)=>!RallyExcluded(u)&&FormationEligible(u)&&(!u.IsFlyingType||u.AIAgent is AIAirVehicleAgent)&&u.AIAgent.AgentPathfinding.PathfindingSeeker;
         private void InstallRally()
         {
             HarmonyInstance.Patch(AccessTools.Method(typeof(Structure),"ConstructNonPlaceableInstant"),prefix:new HarmonyMethod(typeof(Formations),nameof(ProductionBegin)),transpiler:new HarmonyMethod(typeof(Formations),nameof(ObserveProduced)),finalizer:new HarmonyMethod(typeof(Formations),nameof(ProductionEnd)));
@@ -67,6 +71,7 @@ namespace Si_Formation
         private static void Produced(Unit __instance,ConstructionSite site)
         {
             if(!Active||!Game.GetIsServer()||!__instance||__instance.IsDestroyed)return;
+            if(RallyExcluded(__instance)){ReleaseRally(__instance);return;}
             if(__instance.IsFlyingType&&!(__instance.AIAgent is AIAirVehicleAgent))return;
             var factory=site?site.ParentStructure:production;
             if(!factory||factory.Team!=__instance.Team)return;
@@ -83,7 +88,11 @@ namespace Si_Formation
         }
         // Production's native rally is postponed until a free destination is chosen;
         // factory forced exit stays untouched, including the vehicle's native exit path.
-        private static bool NativeRally(Unit __instance)=>!Active||issuingUnit==__instance||!Game.GetIsServer()||!Pending.ContainsKey(__instance);
+        private static bool NativeRally(Unit __instance)
+        {
+            if(RallyExcluded(__instance)){ReleaseRally(__instance);return true;}
+            return !Active||issuingUnit==__instance||!Game.GetIsServer()||!Pending.ContainsKey(__instance);
+        }
         private static void ReleaseRally(Unit unit)
         {
             Pending.Remove(unit);
@@ -103,6 +112,7 @@ namespace Si_Formation
         private static void OtherOrder(AIOrderProcessor __instance,OrderTarget __1,OrderIssueParams __2,bool __result)
         {
             if(!ready||!__result||!(__instance.Owner is Unit u))return;
+            if(RallyExcluded(u)){ReleaseRally(u);return;}
             if(issuingUnit==u){rallyOrderAccepted=true;return;}
             if(!__2.CalledByAI){ReleaseRally(u);return;}
             if(production||exitDepth>0)return;
@@ -123,7 +133,7 @@ namespace Si_Formation
             foreach(var t in Pending.Values.ToArray())
             {
                 var u=t.Unit;
-                if(!u||u.IsDestroyed||u.Team!=t.Team||!Unit.Units.Contains(u)){ReleaseRally(u);continue;}
+                if(!u||u.IsDestroyed||RallyExcluded(u)||u.Team!=t.Team||!Unit.Units.Contains(u)){ReleaseRally(u);continue;}
                 if(!Eligible(u))
                 {
                     if(u.PlayerControlled||u.ControlledBy||u.InCompartment||(u.Driver&&u.Driver.ControlledBy))ReleaseRally(u);

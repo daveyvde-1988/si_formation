@@ -7,7 +7,7 @@ namespace Si_Formation
         internal static bool TryProject(Unit unit, Vector3 desired, out Vector3 point)
         {
             point = Vector3.zero;
-            if (!unit)
+            if (!unit || !unit.AIAgent || !unit.AIAgent.AgentPathfinding || !unit.AIAgent.AgentPathfinding.PathfindingSeeker)
                 return false;
 
             Terrain terrain = Game.MainTerrain;

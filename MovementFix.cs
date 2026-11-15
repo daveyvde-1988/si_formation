@@ -45,7 +45,7 @@ namespace Si_Formation
                 if(!SaveSettings(p))return;
             }
             else if(value!=""&&value!="status"){Reply(p,"/movementfix on|off|status");return;}
-            Reply(p,"Movement fix "+(settings.MovementFix?"ON":"OFF")+"; applies to new grouped move/attack orders. Explicit movement modes and physical obstacles still apply.");
+            Reply(p,"Movement fix "+(settings.MovementFix?"ON":"OFF")+"; applies to new grouped move/attack orders. Each faction's enabled group cohesion also suppresses native slowdown for that faction. Explicit movement modes and obstacles still apply.");
         }
     }
 }
