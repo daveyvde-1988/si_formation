@@ -8,7 +8,7 @@ using Silica.AI;
 using SilicaAdminMod;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "3.15.0", "Local")]
+[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "3.16.2", "Local")]
 [assembly: MelonGame("Bohemia Interactive", "Silica")]
 [assembly: MelonOptionalDependencies("Admin Mod")]
 namespace Si_Formation
@@ -35,7 +35,7 @@ namespace Si_Formation
         {
             try
             {
-                foreach(string name in new[]{"formation","formationspace","dragspace","rallyspace","scout","movementfix","sizeinfluence","alienspread","fpsspace","fpsdistance","fpsallowance","groupcohesion","cohesion","aliengroupcohesion","aliencohesion","cohesiondebug","travelcoverdisabler","destinationcohesion","waypointwait"})
+                foreach(string name in new[]{"formation","formationspace","dragspace","rallyspace","scout","movementfix","pathshortcut","sizeinfluence","alienspread","fpsspace","fpsdistance","fpsallowance","groupcohesion","cohesion","aliengroupcohesion","aliencohesion","cohesiondebug","travelcoverdisabler","destinationcohesion","waypointwait"})
                     if(PlayerMethods.FindPlayerCommandFromString(name)!=null||AdminMethods.FindAdminCommandFromString(name)!=null)
                         throw new InvalidOperationException("Command already registered: "+name+". Remove the old formation mod.");
                 LoadServerSettings();
@@ -46,6 +46,7 @@ namespace Si_Formation
                     finalizer:new HarmonyMethod(typeof(Formations),nameof(EndMove)));
                 InstallRally();
                 InstallMovementFix();
+                InstallPathfindingShortcut();
                 InstallSpacing();
                 InstallFps();
                 InstallCohesion();
@@ -61,6 +62,7 @@ namespace Si_Formation
                 AdminMethods.RegisterAdminCommand("dragspace",(p,a)=>TuningCommand(p,a,"dragspace"),Power.Generic,"Server commander click-and-drag spacing, 0..100%.");
                 AdminMethods.RegisterAdminCommand("rallyspace",RallyCommand,Power.Generic,"Server rally spacing, 0..100%.");
                 AdminMethods.RegisterAdminCommand("movementfix",MovementFixCommand,Power.Generic,"Server grouped movement speed fix, on|off|status.");
+                AdminMethods.RegisterAdminCommand("pathshortcut",PathfindingShortcutCommand,Power.Generic,"Native vehicle pathfinding shortcut pass, 0..2000 metres or status.");
                 AdminMethods.RegisterAdminCommand("destinationcohesion",DestinationCohesionCommand,Power.Generic,
                     "Nearby destination cohesion fallback, on|off|status; ON by default.");
                 AdminMethods.RegisterAdminCommand("waypointwait",WaypointWaitCommand,Power.Generic,
@@ -73,11 +75,13 @@ namespace Si_Formation
                 GameEvents.OnGameStarted+=ScoutRoundStarted;
                 GameEvents.OnGameEnded+=ScoutRoundEnded;
                 ready=true;
+                RefreshPathfindingShortcutDistance(Game.GetIsServer());
                 MelonLogger.Msg("Formation tuning ready: click/drag spacing, group cohesion, FPS layouts and reserved 3D rally destinations.");
             }
             catch(Exception e)
             {
                 ready=false;
+                RefreshPathfindingShortcutDistance(false);
                 // Log the original failure first: a patch cleanup error must not
                 // replace the evidence for why commands never became available.
                 MelonLogger.Error("Formation initialization failed: "+e);
@@ -196,7 +200,10 @@ namespace Si_Formation
         }
         public override void OnUpdate()
         {
-            if(!ready||!Game.GetIsServer())return;
+            if(!ready)return;
+            bool isServer=Game.GetIsServer();
+            RefreshPathfindingShortcutDistance(isServer);
+            if(!isServer)return;
             foreach(var p in Scouts.Keys.Where(p=>!p||!Player.Players.Contains(p)).ToArray())Scouts.Remove(p);
             foreach(var item in Scouts)if(!item.Key.IsCommander||item.Key.Team!=item.Value.ScoutTeam)item.Value.ScoutArmed=false;
             TickWaypointState();
@@ -209,7 +216,7 @@ namespace Si_Formation
         {ClearWaypointState();ClearMovementDiagnostics();ClearCohesionState("scene unload");CohesionGroups.Clear();ClearRallyState();ClearFpsStates();foreach(var settings in Scouts.Values)settings.ScoutArmed=false;}
         public override void OnDeinitializeMelon()
         {
-            ready=false;ClearWaypointState();ClearMovementDiagnostics();ClearCohesionState("mod unload");CohesionGroups.Clear();RemoveFormationPatches();Scouts.Clear();ClearRallyState();ClearFpsStates();
+            ready=false;RefreshPathfindingShortcutDistance(false);ClearWaypointState();ClearMovementDiagnostics();ClearCohesionState("mod unload");CohesionGroups.Clear();RemoveFormationPatches();Scouts.Clear();ClearRallyState();ClearFpsStates();
             GameEvents.OnGameStarted-=ScoutRoundStarted;GameEvents.OnGameEnded-=ScoutRoundEnded;
         }
     }

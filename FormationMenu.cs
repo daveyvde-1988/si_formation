@@ -50,12 +50,13 @@ namespace Si_Formation
         // handlers supply their own values/formatting; no layout or preference is created.
         private static void FormationStatus(Player p)
         {
-            Reply(p,"Si_Formation 3.15.0; server-wide configuration; enabled "+(ServerEnabled?"ON":"OFF")+"; effective "+(Active?"ON":"OFF")+".");
+            Reply(p,"Si_Formation 3.16.2; server-wide configuration; enabled "+(ServerEnabled?"ON":"OFF")+"; effective "+(Active?"ON":"OFF")+".");
             SpacingCommand(p,"/formationspace status");
             RallyCommand(p,"/rallyspace status");
             foreach(string command in new[]{"dragspace","sizeinfluence","alienspread","fpsspace","fpsdistance","fpsallowance"})
                 TuningCommand(p,"/"+command+" status",command);
             MovementFixCommand(p,"/movementfix status");
+            PathfindingShortcutCommand(p,"/pathshortcut status");
             TravelCoverCommand(p,"/travelcoverdisabler status");
             DestinationCohesionCommand(p,"/destinationcohesion status");
             WaypointWaitCommand(p,"/waypointwait status");
@@ -76,11 +77,14 @@ namespace Si_Formation
                     ["ui"]=new JObject{["kind"]="button",["group"]=SwitchGroup}}
             };
             AddSwitch(commands,"/formation enabled","Formation mod",ServerEnabled,"Enable or disable server-wide formation tuning.");
+            AddSlider(commands,"pathshortcut","Pathfinding shortcut pass",PathfindingShortcutDistance,DefaultPathfindingShortcutDistance,
+                "Maximum horizontal span for native vehicle path shortcuts. Default 1000m; native limit 200m. 0 disables corner shortcuts. Applies to newly processed paths.",
+                unit:"m",group:SwitchGroup,maximum:MaximumPathfindingShortcutDistance,step:25);
             commands.Add(AdminEntry("/formation advanced","About cohesion controls",AdvancedDescription,"explanation",AdvancedGroup));
-            AddSwitch(commands,"!movementfix","Suppress native group slowdown",ServerSettings.MovementFix,"Use independent speeds for new grouped orders. Enabled faction cohesion applies its own pacing.",DefaultGroup);
-            AddSwitch(commands,"!travelcoverdisabler","Travel cover preference disabler",TravelCoverPreferenceDisabler,"ON disables human infantry travel-waypoint cover preference. Combat cover behavior remains native.",DefaultGroup);
+            AddSwitch(commands,"!movementfix","Suppress native group slowdown",ServerSettings.MovementFix,"Use independent speeds for new grouped orders. Enabled faction cohesion applies its own pacing.",SwitchGroup);
+            AddSwitch(commands,"!travelcoverdisabler","Travel cover preference disabler",TravelCoverPreferenceDisabler,"ON disables human infantry travel-waypoint cover preference. Combat cover behavior remains native.",SwitchGroup);
             AddSwitch(commands,"!destinationcohesion","Nearby destination cohesion",DestinationLocalCohesionEnabled,
-                "Enable the nearby-destination fallback for scattered or oversized selections, for both factions. Uses each faction's Destination arrival radius (600m by default). ON by default; compact-group cohesion remains independent.",DefaultGroup);
+                "Enable the nearby-destination fallback for scattered or oversized selections, for both factions. Uses each faction's Destination arrival radius (600m by default). ON by default; compact-group cohesion remains independent.",SwitchGroup);
             AddSlider(commands,"formationspace","Formation spacing (single click)",ServerSettings.Spacing,DefaultSpacing,"Commander formations: spacing for new single-click orders. 0% = baseline; 30% = 3x; 100% = 10x.");
             AddSlider(commands,"dragspace","Formation spacing (click and drag)",ServerSettings.DragSpacing,DefaultDragSpacing,"Packing gaps for new dragged formations. 0% = compact baseline; 30% = 3x; 100% = 10x. Drag length sets frontage. Physical clearance is retained.");
             AddSlider(commands,"sizeinfluence","Large-unit influence",ServerSettings.SizeInfluence,DefaultSizeInfluence,"Commander and FPS formations: 0% uses each unit's footprint; 100% fully applies the largest footprint.");
@@ -101,6 +105,9 @@ namespace Si_Formation
             // Commands/values/permissions still come from its authenticated command list.
             var presentation=new JArray(commands.OfType<JObject>().Select(row=>new JObject
                 {["t"]=row["t"].DeepClone(),["ui"]=row["ui"].DeepClone()}));
+            // Registered base-command forms retain their argument metadata.
+            foreach(string command in new[]{"!aliencohesion","!cohesion","!waypointwait"})
+                presentation.Add(new JObject{["t"]=command,["ui"]=new JObject{["group"]=DiagnosticsGroup}});
             return new JObject{["schema"]=2,["commands"]=commands,["controlPresentation"]=presentation}.ToString(Formatting.None);
         }
 
@@ -123,11 +130,11 @@ namespace Si_Formation
             var ui=(JObject)row["ui"];ui["min"]=0;ui["max"]=120;ui["step"]=1;ui["unit"]="s";ui["default"]=CohesionNumber(defaultValue);
             commands.Add(row);
         }
-        private static void AddSlider(JArray commands,string command,string label,int value,int defaultValue,string description,int minimum=0,string unit="%",string group=DefaultGroup)
+        private static void AddSlider(JArray commands,string command,string label,int value,int defaultValue,string description,int minimum=0,string unit="%",string group=DefaultGroup,int maximum=100,int step=1)
         {
             var row=AdminEntry("!"+command,label,description+" Shared server setting.","slider",group);
             row["v"]=value.ToString(CultureInfo.InvariantCulture);
-            var ui=(JObject)row["ui"];ui["min"]=minimum;ui["max"]=100;ui["step"]=1;ui["unit"]=unit;ui["default"]=defaultValue.ToString(CultureInfo.InvariantCulture);
+            var ui=(JObject)row["ui"];ui["min"]=minimum;ui["max"]=maximum;ui["step"]=step;ui["unit"]=unit;ui["default"]=defaultValue.ToString(CultureInfo.InvariantCulture);
             commands.Add(row);
         }
     }

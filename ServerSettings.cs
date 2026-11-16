@@ -10,6 +10,9 @@ namespace Si_Formation
     {
         private static MelonPreferences_Category serverPreferences;
         private static MelonPreferences_Entry<bool> enabledPreference,movementFixPreference,destinationLocalCohesionPreference;
+        private static MelonPreferences_Entry<int> pathfindingShortcutPreference;
+        private const int DefaultPathfindingShortcutDistance=1000,MaximumPathfindingShortcutDistance=2000;
+        private static int PathfindingShortcutDistance=DefaultPathfindingShortcutDistance;
         private static bool DestinationLocalCohesionEnabled;
         private static MelonPreferences_Entry<float> humanWaypointWaitPreference,alienWaypointWaitPreference,alienCombatWaitPreference;
         private static float HumanWaypointWait=DefaultHumanWaypointWait,AlienWaypointWait=DefaultAlienWaypointWait,AlienCombatWait=DefaultAlienCombatWait;
@@ -24,6 +27,15 @@ namespace Si_Formation
             serverPreferences.SetFilePath(Path.Combine(directory,"si_formation_native.cfg"));
             enabledPreference=serverPreferences.CreateEntry("Enabled",true,description:"Server-wide formation tuning master switch.");
             movementFixPreference=serverPreferences.CreateEntry("MovementFix",DefaultMovementFix,description:"New grouped move/attack orders use each unit's own speed without cohesion slowdown.");
+            pathfindingShortcutPreference=serverPreferences.CreateEntry("PathfindingShortcutPass",DefaultPathfindingShortcutDistance,
+                description:"Maximum horizontal span for the native vehicle pathfinding shortcut pass. Metres, 0..2000; 0 disables corner shortcuts. Applies to newly processed paths.");
+            PathfindingShortcutDistance=pathfindingShortcutPreference.Value;
+            if(PathfindingShortcutDistance<0||PathfindingShortcutDistance>MaximumPathfindingShortcutDistance)
+            {
+                MelonLogger.Warning("Invalid pathfinding shortcut pass distance; using "+DefaultPathfindingShortcutDistance+" metres.");
+                PathfindingShortcutDistance=DefaultPathfindingShortcutDistance;
+                pathfindingShortcutPreference.Value=PathfindingShortcutDistance;
+            }
             destinationLocalCohesionPreference=serverPreferences.CreateEntry("DestinationLocalCohesion",DefaultDestinationLocalCohesion,
                 description:"Enable the destination-local cohesion fallback for scattered or oversized selections. Uses each faction's DestinationRadius (600m by default); ON by default.");
             DestinationLocalCohesionEnabled=destinationLocalCohesionPreference.Value;
@@ -68,6 +80,8 @@ namespace Si_Formation
         {
             if(!DemandAdmin(p))return false;
             movementFixPreference.Value=ServerSettings.MovementFix;
+            pathfindingShortcutPreference.Value=PathfindingShortcutDistance;
+            RefreshPathfindingShortcutDistance(Game.GetIsServer());
             destinationLocalCohesionPreference.Value=DestinationLocalCohesionEnabled;
             humanWaypointWaitPreference.Value=HumanWaypointWait;
             alienWaypointWaitPreference.Value=AlienWaypointWait;
@@ -102,6 +116,21 @@ namespace Si_Formation
             if(float.IsNaN(value)||float.IsInfinity(value)||value<0||value>120)
             {MelonLogger.Warning("Invalid waypoint grace; using "+fallback+" seconds.");value=fallback;}
             preference.Value=value;return value;
+        }
+        private static void PathfindingShortcutCommand(Player p,string args)
+        {
+            if(!ready||!Game.GetIsServer()||!p)return;
+            string value=Argument(args);
+            if(value!=""&&value!="status")
+            {
+                if(!DemandAdmin(p))return;
+                if(!int.TryParse(value,System.Globalization.NumberStyles.Integer,System.Globalization.CultureInfo.InvariantCulture,out int distance)||
+                    distance<0||distance>MaximumPathfindingShortcutDistance)
+                {Reply(p,"/pathshortcut <0..2000 metres> | status");return;}
+                PathfindingShortcutDistance=distance;
+                if(!SaveSettings(p))return;
+            }
+            Reply(p,"Pathfinding shortcut pass: "+PathfindingShortcutDistance+"m; 0 disables corner shortcuts. Applies to newly processed native vehicle paths.");
         }
         private static void WaypointWaitCommand(Player p,string args)
         {

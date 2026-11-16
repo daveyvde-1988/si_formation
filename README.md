@@ -1,8 +1,8 @@
-﻿# Native formation tuning — Si_Formation 3.15.0
+﻿# Native formation tuning — Si_Formation 3.16.2
 
-This is the native implementation for Silica game 1.0. The mod version is **3.15.0**, and this `si_formation` folder is its canonical source. The legacy implementation is preserved on [legacy/pre-native-1.0-20261111](https://github.com/daveyvde-1988/si_formation/tree/legacy/pre-native-1.0-20261111) and in a separate local archive. The native implementation does not include the old public FormationApi or custom blueprint system.
+This is the native implementation for Silica game 1.0. The mod version is **3.16.2**, and this `si_formation` folder is its canonical source. The legacy implementation is preserved on [legacy/pre-native-1.0-20261111](https://github.com/daveyvde-1988/si_formation/tree/legacy/pre-native-1.0-20261111) and in a separate local archive. The native implementation does not include the old public FormationApi or custom blueprint system.
 
-- [Group cohesion quick guide (historical 3.8.2 PDF snapshot)](docs/Formation_Quick_Summary.pdf) | [Historical editable quick guide](docs/Formation_Quick_Summary.md)
+- [Quick summary (PDF)](docs/Formation_Quick_Summary.pdf) | [Editable quick summary](docs/Formation_Quick_Summary.md)
 - [Group cohesion settings, behavior and debug guide](docs/Group_Cohesion.md)
 - [3.11.0 bounded waypoint regrouping and aircraft arrival](docs/Changes_3.11.0.md)
 - [3.10.0 formation fixes, rear aircraft and waypoint barriers (historical)](docs/Changes_3.10.0.md)
@@ -16,8 +16,8 @@ This is the native implementation for Silica game 1.0. The mod version is **3.15
 - [3.6.1 partial-selection reformation](docs/Changes_3.6.1.md)
 - [3.6.0 rotation, Alien settings and air placement](docs/Changes_3.6.0.md)
 - [3.5.1 startup correction](docs/Startup_Fix_3.5.1.md)
-- [Purpose and functions overview (3.4.4 PDF snapshot)](docs/Formation_Overview.pdf)
-- [Editable overview](docs/Formation_Overview.md)
+- [Detailed formation overview (PDF)](docs/Formation_Overview.pdf)
+- [Editable detailed overview](docs/Formation_Overview.md)
 - [Source migration and legacy archive](docs/MIGRATION.md)
 
 ## Menu and permissions
@@ -28,20 +28,21 @@ Tuning and cohesion debug commands require AdminMod Generic permission. Admins m
 
 The provider supplies collapsible groups. Updated ClientModUI clients also read the generic `controlPresentation` hints retained by the original Si_ModUI_Server 1.4.4, which discards the command-level `ui` metadata. Both the updated client and this provider export are required for categories with that companion; no companion replacement is needed.
 
-- **General / Commander placement / FPS squads / Rally:** master control, ordinary placement/movement tuning, follower controls and production parking.
-- **Human cohesion:** independent enable switch and 12 numeric controls for one continuous distance profile.
-- **Alien cohesion:** an independent switch and 12 separate numeric controls. Alien placement spacing is also located here, with its effect independent of the cohesion switch.
-- **Diagnostics:** global and per-group debug actions shared by both factions. Labels retain faction names and near/far endpoints for clients that do not consume grouping metadata.
+- **General:** Formation master, pathfinding shortcut pass, Suppress native group slowdown, Travel cover preference disabler, Nearby destination cohesion and both faction cohesion switches.
+- **Commander placement / FPS squads / Rally:** placement spacing and checkpoint waits, follower controls and production parking.
+- **Human cohesion:** 12 numeric controls for one continuous distance profile.
+- **Alien cohesion:** 12 separate numeric controls and Alien placement spacing.
+- **Diagnostics:** global and per-group debug actions plus the generic `!aliencohesion`, `!cohesion` and `!waypointwait` command forms. Labels retain faction names and near/far endpoints for clients that do not consume grouping metadata.
 
-The presentation compatibility export is retained. In-game accordion verification remains pending. No ClientModUI change or native-preview hook is included. Perimeter defense remains removed.
+The presentation compatibility export includes group-only hints for the three registry-generated command forms, preserving their argument controls. In-game accordion verification remains pending. No ClientModUI change or native-preview hook is included. Perimeter defense remains removed.
 
-The schema-2 export contains **47 rows**, including the nearby-destination switch and three checkpoint wait sliders. Both faction cohesion switches default ON and preserve saved values. Nearby destination cohesion defaults ON for both factions. Ordinary cohesion uses one profile from zero distance to `MaximumRange` (default **5000m for Humans and 5034m for Aliens**); longer ordinary commands use no custom pacing or holding. Reverse uses its own strict snapshot pacing. Near/Far mean the ordinary profile's zero-distance and maximum-distance endpoints, not different units. Old Close/Medium/Long boundaries and endpoint keys are ignored.
+The schema-2 export contains **48 rows**, including the General pathfinding shortcut slider, nearby-destination switch and three checkpoint wait sliders. Both faction cohesion switches default ON and preserve saved values. Nearby destination cohesion defaults ON for both factions. Ordinary cohesion uses one profile from zero distance to `MaximumRange` (default **5000m for Humans and 5034m for Aliens**); longer ordinary commands use no custom pacing or holding. Reverse uses its own strict snapshot pacing. Near/Far mean the ordinary profile's zero-distance and maximum-distance endpoints, not different units. Old Close/Medium/Long boundaries and endpoint keys are ignored.
 
 Compatible structured ServerModUI/ClientModUI versions can render the supplied groups as collapsible sections and use their slider ranges/descriptions. Older bridges that discard per-command `ui` hints can show ordinary admin value/choice controls without accordions or typed sliders. Rendering depends on the compatible UI bridge; this implementation does not supply a client mod or an additional UI polling loop.
 
 ## Server configuration
 
-Configuration is saved by MelonPreferences in `UserData/cfg/Formation/si_formation_native.cfg`, category `[Si_Formation_Native]`. Admin changes save immediately. Existing saved values take precedence; the defaults below match the active saved tuning captured on 15 November 2026. Perimeter defense is removed; old defense settings are ignored. The old `si_formation.cfg` and blueprint catalogs are untouched. Loaded cohesion numbers are clamped to valid bounds; nonfinite values and reversed endpoint pairs restore the affected defaults with warnings. Edit the file while the server is stopped.
+Configuration is saved by MelonPreferences in `UserData/cfg/Formation/si_formation_native.cfg`, category `[Si_Formation_Native]`. Admin changes save immediately. Existing saved values take precedence; the defaults below match the active saved tuning captured on 16 November 2026. Perimeter defense is removed; old defense settings are ignored. The old `si_formation.cfg` and blueprint catalogs are untouched. Loaded cohesion numbers are clamped to valid bounds; nonfinite values and reversed endpoint pairs restore the affected defaults with warnings. Edit the file while the server is stopped.
 
 This version uses one shared server configuration and does not opt into ClientModUI's personal preference restoration. Existing client preference files are neither read nor migrated, and regular-player replay attempts cannot change server settings. Pending scout actions remain transient commander state, not personal configuration.
 
@@ -49,6 +50,7 @@ This version uses one shared server configuration and does not opt into ClientMo
 | --- | --- | --- | --- |
 | Enabled | `/formation enabled on\|off` | true | on/off |
 | MovementFix | `/movementfix on\|off\|status` | true | on/off |
+| PathfindingShortcutPass | `/pathshortcut <metres>\|status` | 1000m | 0..2000m; menu steps 25m; 0 disables corner shortcuts |
 | GroupCohesion | `/groupcohesion on\|off\|status` | true | on/off |
 | AlienGroupCohesion | `/aliengroupcohesion on\|off\|status` | true | on/off |
 | DestinationLocalCohesion | `/destinationcohesion on\|off\|status` | true | on/off; shared Human/Alien nearby-destination rule |
@@ -85,6 +87,10 @@ Older configurations with a saved WaypointGraceNear value use it when the fixed 
 
 Settings affect subsequent placements. Existing rally tickets retain their captured scale. FPS settings are observed by the existing movement-update logic. Disabling the master releases formation ownership and air-height reservations, clears pending scouting and waypoint barriers, and hands pending production destinations back to native rally handling. Already issued destinations remain native orders.
 
+**General → Pathfinding shortcut pass** adjusts the maximum horizontal span checked by native vehicle `RemoveOpenCorners` when processing a fresh path. The default span is 1000m. The game's native limit is 200m. The slider ranges from 0 to 2000m in 25m steps. Zero disables corner shortcuts. `/pathshortcut` accepts any whole metre within that range and saves immediately. Existing saved configurations receive 1000m when the key is absent. The server publishes the setting for path workers without Unity or preference reads on those workers. Master OFF restores the native 200m limit.
+
+The native traversal checks and subsequent vehicle-width corner offsets govern accepted shortcuts. Larger values can remove additional bends where the vehicle navigation graph permits a direct crossing. This applies to native vehicle paths processed on the server, including automatic orders. Changes take effect on subsequent path processing. Prototype vehicles whose navigation is delegated to a client use that client's path processing.
+
 ## Preserved native behavior
 
 Planning uses nominal requested-mode statistics for both cohesion estimates and waypoint deadlines. Fast infantry orders use SprintSpeed, normal orders use RunSpeed, and Stealth uses WalkSpeed. Vehicle Reverse uses ReverseNormalSpeed. Alien ground/flight modes use their corresponding configured speeds. Standing movement input, CanSprint, stance, damage slowdowns, MoveSpeedScale and measured velocity do not lower the planning estimate. Native execution restrictions still determine actual movement.
@@ -115,11 +121,11 @@ Destroyed or despawned members can leave remembered gaps while total casualties 
 
 Valid drag-derived layout memory is independent of speed coordination. Older move cleanup cannot erase a newer layout, natural completion does not immediately forget intended offsets, and captured current/queued moves can retain an intact layout for Reverse. Ordinary retention applies after those moves end. A new ordinary one-click Move explicitly clears this memory, including when queued.
 
-The **Commander placement → Nearby destination cohesion** switch controls the 600m rule for both factions and defaults **ON**. Its saved key is `DestinationLocalCohesion`; command: `/destinationcohesion on|off|status`. A missing switch uses the tuned ON default. Saved OFF values load normally. Ordinary compact-group cohesion keeps its existing faction settings.
+The **General → Nearby destination cohesion** switch controls the 600m rule for both factions and defaults **ON**. Its saved key is `DestinationLocalCohesion`; command: `/destinationcohesion on|off|status`. A missing switch uses the tuned ON default. Saved OFF values load normally. Ordinary compact-group cohesion keeps its existing faction settings.
 
 When the switch is ON, `DestinationRadius` (600m per faction by default) admits selected eligible ground units from a dispersed or oversized selection already within that horizontal distance of the clicked/drag centre. Up to `MaxUnits` nearest members receive local arrival pacing; distant units use independent rear destinations and never govern the cohort's pace or casualty count. This is a fixed issue-time cohort, not automatic late recruitment. Turning the switch OFF immediately releases active and queued destination-local pacing without replacing native orders or their destinations. Each faction's radius is retained; radius 0 also disables that faction's fallback. Commands: `/cohesion DestinationRadius 600` and `/aliencohesion DestinationRadius 600`.
 
-The **Travel cover preference disabler** defaults ON in Commander placement. It suppresses the soldier agent's automatic long-path cover waypoint substitution, retaining native Stealth area handling. Combat reactions, threat/cover choice and claims remain native. OFF restores native travel cover on newly calculated paths; changing the switch does not reissue existing orders. The Formation master switch still controls effective operation.
+The **Travel cover preference disabler** defaults ON in General. It suppresses the soldier agent's automatic long-path cover waypoint substitution, retaining native Stealth area handling. Combat reactions, threat/cover choice and claims remain native. OFF restores native travel cover on newly calculated paths; changing the switch does not reissue existing orders. The Formation master switch still controls effective operation.
 
 Single-click ground placements use fresh, individually sized grid cells with a blend between each ground unit's radius and the selection's largest ground footprint. Drag and Reverse layouts retain projection and physical-clearance checks. A short valid drag starts two units across in a longitudinal rectangle. Increasing drag width adds columns through a square and a sideways rectangle, then forms a single line when the total required footprint fits. Native priority ordering applies during packing, and priority bands can share the final single row. Unit count, mixed physical sizes and terrain projection determine the exact proportions. Aircraft do not affect ground count, rows, footprint, spacing or cohesion membership; their separate rows begin **50m** behind the ground formation rear edge. When ground units are at least as numerous, aircraft span that ground width. When eligible aircraft outnumber the placed ground units, the air block uses a compact, roughly square footprint based on aircraft count and horizontal cell dimensions. Its width can extend beyond the ground formation. A partial final row is centred at normal air spacing. All-air selections use the same compact packing around their own command anchor. Colossus and Defiler use separate clearance-sized rear slots. Their radii, bounds and spacing influence are excluded from the ordinary flyers cell dimensions and air-pitch estimate. Ordinary flyers therefore retain their compact block when either large type joins the selection. Physical clearance is checked between both blocks. Aircraft arrival uses a horizontal cylinder with the native final-waypoint radius; height does not affect arrival or regroup ETA. Native navigation and flight height remain authoritative, including explicit grounded/stealth movement for flyer-capable Aliens. Commander previews remain vanilla and can differ from tuned destinations.
 
@@ -169,7 +175,7 @@ Waypoint maintenance reuses its barrier snapshot until the collection changes, a
 
 The static review also identified temporary cohort-list allocation and bounded rally occupancy searches as candidates for a later performance pass. Runtime CPU and allocation measurements are user-owned live checks.
 
-The 65 active persisted defaults match the saved tuning captured on 15 November 2026. This includes independent Human/Alien profiles and hidden general controls, all placement/FPS settings, feature switches and the three checkpoint waits. Fresh configurations use Nearby destination cohesion ON with a 600m radius. Existing saved values load before defaults. Debug watches are per-session runtime state.
+All 66 active persisted defaults match the saved tuning captured on 16 November 2026, including PathfindingShortcutPass at 1000m. This includes independent Human/Alien profiles and hidden general controls, all placement/FPS settings, feature switches and the three checkpoint waits. Fresh configurations use Nearby destination cohesion ON with a 600m radius. Existing saved values load before defaults. Debug watches are per-session runtime state.
 ## Build and verification
 
 From this repository folder under the dedicated server's `Silica-1283` directory, run:
@@ -192,6 +198,6 @@ In game, verify:
 8. Use Reverse through the command card and formation/network route, with queued predecessors and mixed vehicle speeds. Compare preserved slot geometry with native steering around obstacles; verify replacement orders release custom caps.
 9. Keep a captured member beyond 1000m for five minutes across several waypoints, then repeat with a rejoin before expiry. Include a final empty queue with a native path still running. Verify timer reset, full queue clearing, path stop, replacement orders, takeover and saved default values. Check Alien combat during a queued move, after checkpoint arrival and after the group timeout. Include native AI combat replacements, repeated engagements, queue capacity, manual Stop/replacement and player takeover. Confirm return to the final checkpoint when the rest of the group has finished. Verify separate faction waits and saved values. Compare small-flyer spacing with and without Colossus/Defiler, including an all-large selection. Drag from the narrow column through square, wide rectangle and mixed-priority single line. Verify mixed ground/air queued Move/Reverse: native completion releases early, timeout releases stuck members, height does not block aircraft, distant members remain ordered and rejoin waiting after catching up. Check 1000m boundaries, one-time path correction, grace controls and manual overrides. Confirm native Defend behavior.
 
-The **3.15.0 dedicated-server Release build passed on 15 November 2026 with 0 warnings and 0 errors**, in 3.55 seconds. The DLL is staged, not installed. No tests, live gameplay checks or server lifecycle actions were run. Compilation does not verify Harmony installation, native queue/flight behavior or multiplayer UI. Historical quick guides and release notes describe their original versions.
+The **3.16.2 dedicated-server Release build passed on 16 November 2026 with 0 warnings and 0 errors**, in 2.57 seconds. The DLL is staged, not installed. No tests, live gameplay checks or server lifecycle actions were run. Compilation does not verify Harmony installation, native queue/flight behavior or multiplayer UI. The quick summary describes this version. Historical release notes describe their original versions.
 
 User observations from 12 November on **3.8.0** described cohesion as subtle/natural, wanted short-move holding retained, noticed no added long-move delay and approved rectangle-start dragging. They also identified native-preview misalignment and a need for smoother presentation. These are qualitative observations, not measured tests or 3.9.0 validation. Preview/smoothing client work is deferred.

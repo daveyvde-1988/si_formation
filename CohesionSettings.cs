@@ -250,7 +250,7 @@ namespace Si_Formation
             {
                 string faction=CohesionFactionName(alien),command=alien?"aliencohesion":"cohesion";
                 AddSwitch(commands,alien?"!aliengroupcohesion":"!groupcohesion",faction+" group cohesion",alien?AlienCohesionEnabled:CohesionEnabled,
-                    "Enable "+faction.ToLowerInvariant()+" custom pacing and eligible remembered-formation holding within MaximumRange. This faction's settings and switch are independent.",CohesionFactionGroup(alien));
+                    "Enable "+faction.ToLowerInvariant()+" custom pacing and eligible remembered-formation holding within MaximumRange. This faction's settings and switch are independent.",SwitchGroup);
                 if(alien)AddSlider(commands,"alienspread","Alien: Placement spacing scale",ServerSettings.AlienSpread,DefaultAlienSpread,
                     "Scale Alien commander, FPS and rally spacing whether Alien cohesion is enabled or disabled. Physical clearance is retained.",group:CohesionFactionGroup(true));
                 foreach(var setting in cohesionSettingOrder.Where(setting=>setting.Alien==alien&&setting.Visible))
