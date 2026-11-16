@@ -67,12 +67,12 @@ namespace Si_Formation
         {
             if(cohesionSettings.Count!=0)return;
             DefineCohesion("MaximumRange","Maximum cohesion range","Interpolate one distance profile from zero to this travel distance. Longer commands use no custom pacing or holding.",CohesionGeneralGroup,5000,1,100000,1,"m");
-            DefineCohesion("DestinationRadius","Destination arrival radius","When Nearby destination cohesion is ON, coordinate only eligible ground members of a dispersed selection already within this horizontal distance of the clicked destination or drag centre when the order is issued. Farther members move independently. Zero disables this fallback.",CohesionGeneralGroup,700,0,10000,25,"m");
-            DefineCohesionPair("Strength","Arrival pacing strength","Blend independent speed toward coordinated arrival pacing; zero leaves arrival speed independent.",1,.2f,0,1,.05f,"",true);
+            DefineCohesion("DestinationRadius","Destination arrival radius","When Nearby destination cohesion is ON, coordinate only eligible ground members of a dispersed selection already within this horizontal distance of the clicked destination or drag centre when the order is issued. Farther members move independently. Zero disables this fallback.",CohesionGeneralGroup,600,0,10000,25,"m");
+            DefineCohesionPair("Strength","Cohesion pacing strength","Blend faster members toward the slowest tier's actual progress; zero leaves speed independent. The slowest tier has no custom cap.",1,.4f,0,1,.05f,"",true);
             DefineCohesionPair("HoldStrength","Formation hold strength","Strength of speed-based holding for an eligible remembered formation; zero disables holding. It does not steer paths or force a new selection into a shape.",1,0,0,1,.05f,"",true);
             DefineCohesionPair("MinimumSpeed","Minimum speed fraction","Minimum pacing cap as a fraction of the requested mode's uncapped speed; native movement can still be slower.",.05f,1,.05f,1,.05f,"",false);
-            DefineCohesionPair("ArrivalWindow","Arrival allowance","Allowed early-arrival window relative to the group's predicted arrival time.",.5f,15,0,60,.25f,"s",false);
-            DefineCohesionPair("MaxDelay","Pacing delay budget","Per-unit cumulative slowdown budget in seconds; pacing also ends after its initial free-speed arrival estimate plus this allowance. Native travel can still take longer.",20,2,0,120,.5f,"s",true);
+            DefineCohesionPair("ArrivalWindow","Arrival allowance","Allowed lead over the slowest tier, in seconds of its nominal speed. Reverse uses an early-arrival time window.",.25f,5,0,60,.25f,"s",false);
+            DefineCohesionPair("MaxDelay","Pacing delay budget","Per-unit cumulative slowdown budget in seconds; pacing also ends after its initial free-speed arrival estimate plus this allowance. Native travel can still take longer.",15,10,0,120,.5f,"s",true);
 
             // Existing common safety/config keys remain available for compatibility,
             // but the normal menu exposes only the twelve distance-profile controls.
@@ -94,12 +94,12 @@ namespace Si_Formation
             {
                 float value=human.Key switch
                 {
-                    "StrengthFar"=>0,
-                    "MinimumSpeedNear"=>.15f,
-                    "ArrivalWindowNear"=>2,
-                    "ArrivalWindowFar"=>20,
-                    "MaxDelayNear"=>30,
-                    "MaxDelayFar"=>3,
+                    "MaximumRange"=>5034,
+                    "StrengthFar"=>.5f,
+                    "HoldStrengthFar"=>.25f,
+                    "MinimumSpeedNear"=>.1f,
+                    "ArrivalWindowNear"=>.5f,
+                    "ArrivalWindowFar"=>10,
                     "StartGrace"=>3,
                     _=>human.Default
                 };

@@ -14,6 +14,7 @@ namespace Si_Formation
         {
             internal Settings Settings;
             internal Team Team;
+            internal Vector3 Origin;
             internal float Scale,Pitch;
             internal Dictionary<Unit,Vector3> Points=new Dictionary<Unit,Vector3>();
             internal readonly HashSet<Unit> RejectedAir=new HashSet<Unit>();
@@ -22,6 +23,27 @@ namespace Si_Formation
         private static bool FormationEligible(Unit u)=>u&&!u.IsDestroyed&&u.AIControlled&&!u.PlayerControlled&&!u.ControlledBy&&!u.InCompartment&&!(u.Driver&&u.Driver.ControlledBy)&&u.CanMove&&u.OrderAgent&&u.AIAgent&&u.AIAgent.AgentPathfinding&&u.AIAgent.AgentPathfinding.PathfindingSeeker;
         private static float Radius(Unit u)=>Mathf.Max(.5f,u.PhysicalRadius);
         private static float FactionScale(Team team,Settings settings)=>team&&(team.name=="Team_Alien"||team.TeamShortName=="Alien")?settings.AlienSpread/100f:1;
+        private static Vector3 FormationOrigin(IReadOnlyList<Unit> units,bool queued)
+        {
+            Vector3 total=Vector3.zero;
+            foreach(var unit in units)
+            {
+                Vector3 point=unit.transform.position;
+                var orders=unit.OrderAgent.Orders;
+                if(queued&&orders.Count>0)
+                {
+                    var previous=orders[orders.Count-1];
+                    if(previous is Silica.AI.AIMoveOrder||previous is Silica.AI.AIReverseOrder)
+                    {
+                        point=previous.GetPosition();
+                        if(waypointOrders.TryGetValue(previous,out var member)&&member.Id==previous.Id&&!member.Removed)
+                            point=member.Barrier.Anchor;
+                    }
+                }
+                total+=point;
+            }
+            return total/units.Count;
+        }
         private static float Pitch(Unit unit,float largest,Settings settings,float scale)
         {
             float radius=Radius(unit),influenced=Mathf.Lerp(radius,largest,settings.SizeInfluence/100f);
@@ -93,13 +115,10 @@ namespace Si_Formation
                 }
                 var eligible=units.Where(FormationEligible).ToList();
                 if(eligible.Count==0)return;
-                var ground=eligible.Where(unit=>!IsFormationAir(unit)).ToList();
-                var facingUnits=ground.Count>0?ground:eligible;
-                Vector3 centre=facingUnits.Aggregate(Vector3.zero,(sum,unit)=>sum+unit.transform.position)/facingUnits.Count;
                 // Native rejects short/degenerate drag lines and dispatches its grid
                 // around start. Supply keyed separated-grid overrides for that same
                 // fallback without changing the native result, list or slot count.
-                context.Points=GridSlots(eligible,start,start-centre,context.Settings,context.Scale,out var fallbackPitch);
+                context.Points=GridSlots(eligible,start,start-context.Origin,context.Settings,context.Scale,out var fallbackPitch);
                 if(fallbackPitch>0){spacing=fallbackPitch;context.Pitch=fallbackPitch;}
                 return;
             }
@@ -135,6 +154,7 @@ namespace Si_Formation
                     {Reply(p,"/"+command+" <"+minimum+"..100> | status");return;}
                     switch(command)
                     {
+                        case "dragspace":settings.DragSpacing=percent;break;
                         case "sizeinfluence":settings.SizeInfluence=percent;break;
                         case "alienspread":settings.AlienSpread=percent;break;
                         case "fpsspace":settings.FpsSpacing=percent;break;
@@ -144,7 +164,7 @@ namespace Si_Formation
                     if(!SaveSettings(p))return;
                 }
             }
-            int current=command=="sizeinfluence"?settings.SizeInfluence:command=="alienspread"?settings.AlienSpread:command=="fpsdistance"?settings.FpsDistance:command=="fpsallowance"?settings.FpsAllowance:settings.FpsSpacing;
+            int current=command=="dragspace"?settings.DragSpacing:command=="sizeinfluence"?settings.SizeInfluence:command=="alienspread"?settings.AlienSpread:command=="fpsdistance"?settings.FpsDistance:command=="fpsallowance"?settings.FpsAllowance:settings.FpsSpacing;
             Reply(p,command+": "+current+(command=="fpsallowance"?"m":"%")+"; new placements only.");
         }
     }

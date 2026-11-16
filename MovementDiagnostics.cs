@@ -232,6 +232,8 @@ namespace Si_Formation
                         " head="+MovementHead(unit)+" ownedOrder="+member.OrderId+" mode="+member.Mode+
                         " target="+MovementPoint(member.Target)+" distance="+MovementNumber(distance)+" remaining="+MovementNumber(member.Remaining)+
                         " freeSpeed="+MovementNumber(member.FreeSpeed)+" requestedCap="+MovementNumber(member.Cap)+
+                        " paceSetter="+member.PaceSetter+" progressSpeed="+MovementNumber(member.ProgressSpeed)+
+                        " groupPace="+MovementNumber(group.PaceSpeed)+" progressGap="+MovementNumber(member.ProgressGap)+
                         " lastAppliedCap="+MovementNumber(member.AppliedCap)+" appliedAge="+(member.LastCapApplied<0?"never":MovementNumber(Time.time-member.LastCapApplied))+ 
                         " capReason="+member.CapReason+" routeReady="+member.RouteReady+" routeInitialized="+member.RouteInitialized+
                         " healthReady="+member.HealthReady+" suspended="+member.Suspended+

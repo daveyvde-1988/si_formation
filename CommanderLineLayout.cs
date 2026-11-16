@@ -18,8 +18,7 @@ namespace SilicaFormationShared
             Vector3 centre=(start+end)*.5f,axis=end-start;axis.y=0;
             float length=axis.magnitude;if(length<2)return points;axis.Normalize();
             Vector3 forward=Vector3.Cross(axis,Vector3.up);
-            int rows=Mathf.Max(1,Mathf.RoundToInt(Mathf.Sqrt(count/1.8f)));
-            int columns=Mathf.CeilToInt((float)count/rows);
+            int columns=Math.Min(2,count);
             var widths=new float[count];var depths=new float[count];
             float minimumWidth=0,totalPitch=0;
             int band=0;
@@ -43,24 +42,24 @@ namespace SilicaFormationShared
                 }
                 band=last;
             }
-            // A short valid drag starts at the ordinary click rectangle's column
-            // footprint instead of squeezing the group into a deep single file.
-            // Wider drags admit more units per row, then spread a complete row.
-            // Keep each native priority band in front of the following band.
+            // Start two units across, then admit more columns as the drag widens.
+            // This progresses through a longitudinal rectangle, square and wide
+            // rectangle before the full selection fits on one line.
             length=Mathf.Max(length,minimumWidth);
+            bool singleLine=length+.001f>=totalPitch;
             float depth=0,previousDepth=0;
             int first=0;
             while(first<count)
             {
                 int rank=Rank(units[first]),last=first+1;
-                while(last<count&&Rank(units[last])==rank)last++;
+                while(last<count&&(singleLine||Rank(units[last])==rank))last++;
                 while(first<last)
                 {
                     int endRow=first;float width=0,rowDepth=0;
                     while(endRow<last)
                     {
                         float w=widths[endRow],d=depths[endRow];
-                        if(endRow>first&&width+w>length)break;
+                        if(endRow>first&&width+w>length+.001f)break;
                         width+=w;rowDepth=Mathf.Max(rowDepth,d);endRow++;
                     }
                     if(first>0)depth+=(previousDepth+rowDepth)*.5f;

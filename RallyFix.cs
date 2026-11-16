@@ -128,6 +128,7 @@ namespace Si_Formation
                 nextRallyPrune=Time.unscaledTime+1;
                 foreach(var u in Parked.Keys.Where(u=>!Eligible(u)||u.Team!=Parked[u].Team||!Unit.Units.Contains(u)).ToArray())ReleaseRally(u);
             }
+            if(Pending.Count==0)return;
             var budget=System.Diagnostics.Stopwatch.StartNew();
             int processed=0;
             foreach(var t in Pending.Values.ToArray())

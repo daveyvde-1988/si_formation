@@ -46,9 +46,11 @@ namespace Si_Formation
             internal uint OrderId;
             internal AgentMoveSpeed Mode;
             internal CohesionTravel Group;
-            internal Vector3 Target,Offset,LastPosition;
+            internal Vector3 Target,Offset,LastPosition,ProgressSamplePosition;
             internal float Direct,Remaining,InitialRemaining,FreeSpeed,Cap=-1,LastProgress,LastRemaining,DelaySpent,FreeArrival,StartedAt=-1,FreshPathAt=-1;
             internal float AppliedCap=-1,LastCapApplied=-1;
+            internal float ProgressSpeed,ProgressGap;
+            internal bool PaceSetter;
             internal string CapReason="not evaluated",DiagnosticState;
             internal bool Started,Arrived,Lost,Free,RouteReady,RouteInitialized,Obstructed,Stuck,Lagging,Suspended,HealthReady,Reverse;
         }
@@ -78,6 +80,7 @@ namespace Si_Formation
             internal CohesionPhase Phase=CohesionPhase.Waiting;
             internal float Created,Started=-1,FirstActive=-1,Ended,InitialRadius,ArrivalTime,LastTick,NextTick,NextDebug,NextHold,TurnUntil,HoldBadSince=-1,SpreadSince=-1;
             internal float Spread,LostPercent,UnhealthyPercent,TurnAngle;
+            internal float PaceSpeed;
             internal string Reason="waiting for move segment";
             internal readonly List<CohesionMember> Members=new List<CohesionMember>();
             internal readonly Queue<string> History=new Queue<string>();
@@ -123,25 +126,6 @@ namespace Si_Formation
             return unit is Soldier soldier&&(soldier.IsJumping||soldier.IsClimbing||soldier.IsFalling);
         }
         private static bool CohesionEligible(Unit unit)=>CohesionGroundMember(unit)&&!CohesionTraversalPaused(unit);
-        private static float CohesionModeSpeed(Unit unit,AgentMoveSpeed mode,bool reverse=false)
-        {
-            // Native reverse has its own speed, even when the requested mode is Fast.
-            float speed=reverse&&unit is Vehicle reversing?reversing.ReverseNormalSpeed:mode==AgentMoveSpeed.Fast?unit.TopSpeed:unit.NormalSpeed;
-            if(unit is Soldier soldier)
-            {
-                speed=mode==AgentMoveSpeed.Stealth?soldier.WalkSpeed:mode==AgentMoveSpeed.Fast&&soldier.CanSprint?soldier.SprintSpeed:soldier.RunSpeed;
-                if(soldier.IsCrouching)speed*=soldier.CrouchSpeedModifier;
-            }
-            else if(unit is CreatureDecapod creature)
-            {
-                speed=mode==AgentMoveSpeed.Stealth?creature.CreepSpeed:creature.MoveSpeed;
-                if(creature.IsSlowed)speed*=creature.HitSlowSpeedPct;
-            }
-            // This field belongs to native orders/other mods. Never write it or derive
-            // free speed from our own throttled velocity/getter.
-            if(unit.MoveSpeedScale<1)speed=Mathf.Min(speed,unit.TopSpeed*Mathf.Max(0,unit.MoveSpeedScale));
-            return Mathf.Max(.05f,speed);
-        }
         private static bool ResetChangedCohesionLayouts(List<Unit> selection)
         {
             var touched=new HashSet<CohesionLayout>();
@@ -217,15 +201,13 @@ namespace Si_Formation
             {
                 // Plan this segment from its predecessor, rather than from an earlier
                 // segment's starting position. Activation is still checked by order ID.
-                Vector3 planned=Vector3.zero;
                 foreach(var unit in units)
                 {
                     var orders=unit.OrderAgent.Orders;
-                    if(orders.Count>0&&!(orders[orders.Count-1] is AIMoveOrder))
-                    {context.Skip="queued predecessor is not an ordinary move";return context;}
-                    planned+=orders.Count>0?orders[orders.Count-1].GetPosition():unit.transform.position;
+                    if(orders.Count>0&&!(orders[orders.Count-1] is AIMoveOrder)&&!(orders[orders.Count-1] is AIReverseOrder))
+                    {context.Skip="queued predecessor is not move/reverse";return context;}
                 }
-                context.Origin=planned/units.Count;
+                context.Origin=FormationOrigin(units,true);
             }
             Vector3 travel=Flat(context.Anchor-context.Origin);
             context.Unpaced=travel.magnitude>CohesionValueFor(context.Team,"MaximumRange");
@@ -262,7 +244,7 @@ namespace Si_Formation
             bool reverse=context.Reverse&&(context.ReverseInfantryMoves==null||!context.ReverseInfantryMoves.ContainsKey(unit));
             if(!CohesionMoveData(order,reverse,out var destination,out var mode)||FlatDistanceSq(destination,worldPosition)>1)return;
             context.Issued[unit]=new CohesionMember{Unit=unit,Processor=processor,OrderId=order.Id,Target=destination,
-                Mode=mode,Reverse=reverse,LastPosition=unit.transform.position};
+                Mode=mode,Reverse=reverse,LastPosition=unit.transform.position,ProgressSamplePosition=Flat(unit.transform.position)};
         }
         private static void FinishCohesion(CohesionDispatch context)
         {
@@ -439,6 +421,7 @@ namespace Si_Formation
             foreach(var member in group.Members)
             {
                 var unit=member.Unit;
+                SampleCohesionProgress(member,group.Forward,dt);
                 if(member.Arrived){arrived++;continue;}
                 if(member.Lost){lost++;continue;}
                 bool eligible=CohesionGroundMember(unit)&&unit.Team==group.Team;
@@ -471,7 +454,7 @@ namespace Si_Formation
                 if(group.FirstActive<0)group.FirstActive=now;
                 if(!member.Started){member.Started=true;member.StartedAt=now;member.LastPosition=unit.transform.position;member.LastProgress=now;member.LastRemaining=member.Direct;}
                 member.Remaining=CohesionRoute(member,out bool routeReady);
-                member.FreeSpeed=CohesionModeSpeed(unit,member.Mode,group.Reverse);
+                member.FreeSpeed=NominalMoveSpeed(unit,member.Mode,member.Reverse);
                 member.RouteReady=routeReady;
                 if(routeReady&&!member.RouteInitialized)
                 {
@@ -601,16 +584,37 @@ namespace Si_Formation
                 }
                 else group.HoldBadSince=-1;
             }
-            // Start from direct-distance estimates while initial native paths are
-            // pending: a five-metre move must not spend a three-second grace
-            // waiting before coordination starts. The getter still refuses to cap
-            // paused/calculating paths; later replans use the normal readiness gate.
+            // Prepare caps promptly while initial paths are pending. The getter
+            // still refuses to cap paused/calculating paths, and later replans
+            // use the normal readiness gate.
             var healthy=active.Where(m=>!m.Suspended&&!m.Stuck&&!m.Lagging&&!m.Obstructed&&!m.Free&&(m.RouteReady||!m.RouteInitialized)).ToList();
             if(healthy.Count<2){foreach(var member in active)ClearCohesionCap(member);return;}
             float pace=healthy.Min(m=>m.FreeSpeed);
+            float pacePosition=0;
+            if(!group.Reverse)
+            {
+                float slowest=active.Min(member=>member.FreeSpeed);
+                pace=slowest;
+                foreach(var member in active)member.PaceSetter=member.FreeSpeed<=slowest+.01f;
+                var setters=active.Where(member=>member.PaceSetter&&!member.Suspended&&!member.Stuck&&!member.Lagging&&!member.Free).ToList();
+                if(setters.Count==0)
+                {
+                    foreach(var member in active)ClearCohesionCap(member);
+                    return;
+                }
+                pacePosition=MedianCohesion(setters.Select(member=>Vector3.Dot(Flat(member.Unit.transform.position)-member.Offset,group.Forward)).ToArray());
+                group.PaceSpeed=MedianCohesion(setters.Select(member=>member.ProgressSpeed).ToArray());
+            }
             var healthySet=new HashSet<CohesionMember>(healthy);
             foreach(var member in active)
             {
+                if(member.PaceSetter)
+                {
+                    ClearCohesionCap(member);
+                    member.CapReason="pace setter: nominal slowest tier";
+                    TraceCohesionMember(member,member.CapReason);
+                    continue;
+                }
                 if(!healthySet.Contains(member)){ClearCohesionCap(member);continue;}
                 if(member.Cap>=0&&member.AppliedCap>=0&&member.LastCapApplied>=now-dt-.1f)
                     member.DelaySpent+=dt*Mathf.Clamp01(1-Mathf.Min(member.Cap,member.FreeSpeed)/member.FreeSpeed);
@@ -620,7 +624,9 @@ namespace Si_Formation
                     TraceCohesionMember(member,"released from pacing: delay budget expired");continue;
                 }
                 float remainingTime=group.ArrivalTime-now-group.Tuning.ArrivalWindow;
-                float desired=remainingTime>.05f?Mathf.Min(member.FreeSpeed,member.Remaining/remainingTime):member.FreeSpeed;
+                float desired=group.Reverse?
+                    (remainingTime>.05f?Mathf.Min(member.FreeSpeed,member.Remaining/remainingTime):member.FreeSpeed):
+                    CohesionProgressTarget(member,pacePosition,group.PaceSpeed,pace);
                 desired=Mathf.Lerp(member.FreeSpeed,desired,group.Tuning.Strength);
                 if(group.Phase==CohesionPhase.Holding)
                 {

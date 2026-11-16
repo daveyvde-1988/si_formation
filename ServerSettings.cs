@@ -11,8 +11,8 @@ namespace Si_Formation
         private static MelonPreferences_Category serverPreferences;
         private static MelonPreferences_Entry<bool> enabledPreference,movementFixPreference,destinationLocalCohesionPreference;
         private static bool DestinationLocalCohesionEnabled;
-        private static MelonPreferences_Entry<float> waypointGraceNearPreference,waypointGraceFarPreference;
-        private static float WaypointGraceNear=5,WaypointGraceFar=15;
+        private static MelonPreferences_Entry<float> humanWaypointWaitPreference,alienWaypointWaitPreference,alienCombatWaitPreference;
+        private static float HumanWaypointWait=DefaultHumanWaypointWait,AlienWaypointWait=DefaultAlienWaypointWait,AlienCombatWait=DefaultAlienCombatWait;
         private static readonly Dictionary<string,MelonPreferences_Entry<int>> tuningPreferences=new Dictionary<string,MelonPreferences_Entry<int>>();
         private static bool ServerEnabled=>enabledPreference?.Value??true;
 
@@ -24,15 +24,24 @@ namespace Si_Formation
             serverPreferences.SetFilePath(Path.Combine(directory,"si_formation_native.cfg"));
             enabledPreference=serverPreferences.CreateEntry("Enabled",true,description:"Server-wide formation tuning master switch.");
             movementFixPreference=serverPreferences.CreateEntry("MovementFix",DefaultMovementFix,description:"New grouped move/attack orders use each unit's own speed without cohesion slowdown.");
-            destinationLocalCohesionPreference=serverPreferences.CreateEntry("DestinationLocalCohesion",false,
-                description:"Enable the destination-local cohesion fallback for scattered or oversized selections. Uses each faction's DestinationRadius (700m by default); OFF by default.");
+            destinationLocalCohesionPreference=serverPreferences.CreateEntry("DestinationLocalCohesion",DefaultDestinationLocalCohesion,
+                description:"Enable the destination-local cohesion fallback for scattered or oversized selections. Uses each faction's DestinationRadius (600m by default); ON by default.");
             DestinationLocalCohesionEnabled=destinationLocalCohesionPreference.Value;
-            waypointGraceNearPreference=serverPreferences.CreateEntry("WaypointGraceNear",5f,description:"Regroup grace after ETA for a zero-distance waypoint, interpolating to the far value at the faction MaximumRange. Seconds, 0..120.");
-            waypointGraceFarPreference=serverPreferences.CreateEntry("WaypointGraceFar",15f,description:"Regroup grace after ETA at or beyond the faction MaximumRange. Seconds, 0..120.");
-            WaypointGraceNear=ReadWaypointGrace(waypointGraceNearPreference,5);
-            WaypointGraceFar=ReadWaypointGrace(waypointGraceFarPreference,15);
+            // A sentinel distinguishes an older saved near-wait value from a
+            // fresh configuration with independently tuned faction defaults.
+            var previousWaitPreference=serverPreferences.CreateEntry("WaypointGraceNear",-1f);
+            bool migrateWait=previousWaitPreference.Value!=-1;
+            float previousWait=migrateWait?ReadWaypointGrace(previousWaitPreference,DefaultHumanWaypointWait):DefaultHumanWaypointWait;
+            previousWaitPreference.Value=previousWait;
+            humanWaypointWaitPreference=serverPreferences.CreateEntry("HumanWaypointWait",migrateWait?previousWait:DefaultHumanWaypointWait,description:"Human checkpoint wait after shared ETA expires. Seconds, 0..120.");
+            alienWaypointWaitPreference=serverPreferences.CreateEntry("AlienWaypointWait",migrateWait?previousWait:DefaultAlienWaypointWait,description:"Alien checkpoint wait after shared ETA expires. Seconds, 0..120.");
+            alienCombatWaitPreference=serverPreferences.CreateEntry("AlienCombatWait",DefaultAlienCombatWait,description:"Additional bounded Alien checkpoint wait when an included member engages in combat. Applied at most once per waypoint. Seconds, 0..120.");
+            HumanWaypointWait=ReadWaypointGrace(humanWaypointWaitPreference,DefaultHumanWaypointWait);
+            AlienWaypointWait=ReadWaypointGrace(alienWaypointWaitPreference,DefaultAlienWaypointWait);
+            AlienCombatWait=ReadWaypointGrace(alienCombatWaitPreference,DefaultAlienCombatWait);
             ServerSettings.MovementFix=movementFixPreference.Value;
-            ServerSettings.Spacing=LoadTuning("Spacing",DefaultSpacing,0,"Commander click/drag spacing percentage: 0=baseline, 30=3x, 100=10x.");
+            ServerSettings.Spacing=LoadTuning("Spacing",DefaultSpacing,0,"Commander single-click spacing percentage: 0=baseline, 30=3x, 100=10x.");
+            ServerSettings.DragSpacing=LoadTuning("DragSpacing",DefaultDragSpacing,0,"Commander click-and-drag spacing percentage: 0=compact baseline, 30=3x, 100=10x. Drag length sets frontage; physical clearance is retained.");
             ServerSettings.Rally=LoadTuning("Rally",DefaultRally,0,"Production rally spacing percentage: 0=baseline, 30=3x, 100=10x; physical clearance is retained.");
             ServerSettings.SizeInfluence=LoadTuning("SizeInfluence",DefaultSizeInfluence,0,"Large-unit footprint influence, 0..100 percent.");
             ServerSettings.AlienSpread=LoadTuning("AlienSpread",DefaultAlienSpread,0,"Alien spacing scale, 0..100 percent; physical clearance is retained.");
@@ -60,9 +69,11 @@ namespace Si_Formation
             if(!DemandAdmin(p))return false;
             movementFixPreference.Value=ServerSettings.MovementFix;
             destinationLocalCohesionPreference.Value=DestinationLocalCohesionEnabled;
-            waypointGraceNearPreference.Value=WaypointGraceNear;
-            waypointGraceFarPreference.Value=WaypointGraceFar;
+            humanWaypointWaitPreference.Value=HumanWaypointWait;
+            alienWaypointWaitPreference.Value=AlienWaypointWait;
+            alienCombatWaitPreference.Value=AlienCombatWait;
             tuningPreferences["Spacing"].Value=ServerSettings.Spacing;
+            tuningPreferences["DragSpacing"].Value=ServerSettings.DragSpacing;
             tuningPreferences["Rally"].Value=ServerSettings.Rally;
             tuningPreferences["SizeInfluence"].Value=ServerSettings.SizeInfluence;
             tuningPreferences["AlienSpread"].Value=ServerSettings.AlienSpread;
@@ -100,15 +111,21 @@ namespace Si_Formation
             if(tokens.Length>0&&tokens[0]!="status")
             {
                 if(!DemandAdmin(p))return;
-                if(tokens.Length!=2||(tokens[0]!="near"&&tokens[0]!="far")||
+                if(tokens.Length!=2||(tokens[0]!="human"&&tokens[0]!="alien"&&tokens[0]!="combat"&&tokens[0]!="near"&&tokens[0]!="far")||
                     !float.TryParse(tokens[1],System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var seconds)||
                     float.IsNaN(seconds)||float.IsInfinity(seconds)||seconds<0||seconds>120)
-                {Reply(p,"/waypointwait near|far <0..120 seconds> | status");return;}
-                if(tokens[0]=="near")WaypointGraceNear=seconds;else WaypointGraceFar=seconds;
+                {Reply(p,"/waypointwait human|alien|combat <0..120 seconds> | status");return;}
+                switch(tokens[0])
+                {
+                    case "human": HumanWaypointWait=seconds; break;
+                    case "alien": AlienWaypointWait=seconds; break;
+                    case "combat": AlienCombatWait=seconds; break;
+                    default: HumanWaypointWait=seconds;AlienWaypointWait=seconds;break;
+                }
                 saved=SaveSettings(p);
             }
-            Reply(p,"Waypoint regroup grace: near "+CohesionNumber(WaypointGraceNear)+"s, far "+CohesionNumber(WaypointGraceFar)+
-                "s; main-body cutoff 1000m. New waypoints capture these settings."+(saved?"":" Save failed; see server log."));
+            Reply(p,"Overdue checkpoint wait: Human "+CohesionNumber(HumanWaypointWait)+"s, Alien "+CohesionNumber(AlienWaypointWait)+
+                "s; Alien combat extension "+CohesionNumber(AlienCombatWait)+"s; main-body cutoff 1000m, orders cancelled after 300s outside. New waypoints capture these settings."+(saved?"":" Save failed; see server log."));
         }
         private static void DestinationCohesionCommand(Player p,string args)
         {

@@ -9,7 +9,7 @@ namespace Si_Formation
     public sealed partial class Formations
     {
         private const string SwitchGroup="General", DefaultGroup="Commander placement", AdvancedGroup="General", FpsGroup="FPS squads", RallyGroup="Rally", DiagnosticsGroup="Diagnostics";
-        private const string AdvancedDescription="Human and Alien cohesion each use one distance profile with 12 controls. Near/Far values interpolate from zero distance to MaximumRange (default 5000m); longer moves have no custom pacing or holding. Ordinary clicks use fresh placement and clear drag memory. Waypoint regroup grace has shared near/far controls. Legacy Close/Medium/Long settings are ignored. Use /cohesion, /aliencohesion, /waypointwait and /cohesiondebug next.";
+        private const string AdvancedDescription="Shift-click/Shift-drag enables Move cohesion and checkpoint waits. Faster members follow the slowest nominal tier's progress. Human and Alien overdue waits have separate sliders, with an additional Alien combat allowance. Drags widen from a narrow column through square and wide layouts to a line. Single-click and drag spacing have separate sliders. Use /cohesion, /aliencohesion, /waypointwait and /cohesiondebug next.";
 
         private static void FormationCommand(Player p,string args)
         {
@@ -50,10 +50,10 @@ namespace Si_Formation
         // handlers supply their own values/formatting; no layout or preference is created.
         private static void FormationStatus(Player p)
         {
-            Reply(p,"Si_Formation 3.11.0; server-wide configuration; enabled "+(ServerEnabled?"ON":"OFF")+"; effective "+(Active?"ON":"OFF")+".");
+            Reply(p,"Si_Formation 3.15.0; server-wide configuration; enabled "+(ServerEnabled?"ON":"OFF")+"; effective "+(Active?"ON":"OFF")+".");
             SpacingCommand(p,"/formationspace status");
             RallyCommand(p,"/rallyspace status");
-            foreach(string command in new[]{"sizeinfluence","alienspread","fpsspace","fpsdistance","fpsallowance"})
+            foreach(string command in new[]{"dragspace","sizeinfluence","alienspread","fpsspace","fpsdistance","fpsallowance"})
                 TuningCommand(p,"/"+command+" status",command);
             MovementFixCommand(p,"/movementfix status");
             TravelCoverCommand(p,"/travelcoverdisabler status");
@@ -80,16 +80,21 @@ namespace Si_Formation
             AddSwitch(commands,"!movementfix","Suppress native group slowdown",ServerSettings.MovementFix,"Use independent speeds for new grouped orders. Enabled faction cohesion applies its own pacing.",DefaultGroup);
             AddSwitch(commands,"!travelcoverdisabler","Travel cover preference disabler",TravelCoverPreferenceDisabler,"ON disables human infantry travel-waypoint cover preference. Combat cover behavior remains native.",DefaultGroup);
             AddSwitch(commands,"!destinationcohesion","Nearby destination cohesion",DestinationLocalCohesionEnabled,
-                "Enable the nearby-destination fallback for scattered or oversized selections, for both factions. Uses each faction's Destination arrival radius (700m by default). OFF by default; compact-group cohesion remains independent.",DefaultGroup);
-            AddSlider(commands,"formationspace","Formation spacing (click / drag)",ServerSettings.Spacing,DefaultSpacing,"Commander formations: spacing for new click/drag orders. 0% = baseline; 30% = 3x; 100% = 10x.");
+                "Enable the nearby-destination fallback for scattered or oversized selections, for both factions. Uses each faction's Destination arrival radius (600m by default). ON by default; compact-group cohesion remains independent.",DefaultGroup);
+            AddSlider(commands,"formationspace","Formation spacing (single click)",ServerSettings.Spacing,DefaultSpacing,"Commander formations: spacing for new single-click orders. 0% = baseline; 30% = 3x; 100% = 10x.");
+            AddSlider(commands,"dragspace","Formation spacing (click and drag)",ServerSettings.DragSpacing,DefaultDragSpacing,"Packing gaps for new dragged formations. 0% = compact baseline; 30% = 3x; 100% = 10x. Drag length sets frontage. Physical clearance is retained.");
             AddSlider(commands,"sizeinfluence","Large-unit influence",ServerSettings.SizeInfluence,DefaultSizeInfluence,"Commander and FPS formations: 0% uses each unit's footprint; 100% fully applies the largest footprint.");
             AddSlider(commands,"fpsspace","FPS unit spacing",ServerSettings.FpsSpacing,DefaultFpsSpacing,"FPS formations: trailing column, stopped fan and destination grid spacing.",group:FpsGroup);
             AddSlider(commands,"fpsdistance","FPS distance to player",ServerSettings.FpsDistance,DefaultFpsDistance,"FPS formations: 10% = 1.667x (5m + player radius); 30% = 3x; 100% = 10x. Physical clearance is retained.",group:FpsGroup);
             AddSlider(commands,"fpsallowance","FPS movement allowance",ServerSettings.FpsAllowance,DefaultFpsAllowance,"FPS formations: player displacement before repositioning; convoy threshold is twice this distance, minimum 10m.",1,"m",FpsGroup);
             AddSlider(commands,"rallyspace","Rally spacing",ServerSettings.Rally,DefaultRally,"Commander formations: parking spacing for newly produced units; physical clearance is retained.",group:RallyGroup);
             AddCohesionMenu(commands);
-            AddWaypointGraceSlider(commands,"near",WaypointGraceNear,5);
-            AddWaypointGraceSlider(commands,"far",WaypointGraceFar,15);
+            AddWaypointWaitSlider(commands,"human","Human overdue checkpoint wait",HumanWaypointWait,DefaultHumanWaypointWait,
+                "Seconds the Human group waits after its shared ETA expires.");
+            AddWaypointWaitSlider(commands,"alien","Alien overdue checkpoint wait",AlienWaypointWait,DefaultAlienWaypointWait,
+                "Seconds the Alien group waits after its shared ETA expires.");
+            AddWaypointWaitSlider(commands,"combat","Alien combat checkpoint wait",AlienCombatWait,DefaultAlienCombatWait,
+                "Additional seconds for combat involving an included Alien member. Applied once per waypoint, including regrouping after combat.");
             AddCohesionDiagnostics(commands);
             // The original Si_ModUI_Server 1.4.4 drops command ui fields. Its data
             // passthrough retains these generic presentation hints for newer clients.
@@ -111,10 +116,9 @@ namespace Si_Formation
             row["v"]=value?"on":"off";row["ch"]=new JArray(new JArray("on","ON"),new JArray("off","OFF"));
             commands.Add(row);
         }
-        private static void AddWaypointGraceSlider(JArray commands,string endpoint,float value,float defaultValue)
+        private static void AddWaypointWaitSlider(JArray commands,string endpoint,string label,float value,float defaultValue,string description)
         {
-            var row=AdminEntry("!waypointwait "+endpoint,"Waypoint regroup grace ("+endpoint+")",
-                "Seconds to wait after the shared ETA. Near/far interpolate using the existing faction MaximumRange. Shared by both factions.","slider",DefaultGroup);
+            var row=AdminEntry("!waypointwait "+endpoint,label,description,"slider",DefaultGroup);
             row["v"]=CohesionNumber(value);
             var ui=(JObject)row["ui"];ui["min"]=0;ui["max"]=120;ui["step"]=1;ui["unit"]="s";ui["default"]=CohesionNumber(defaultValue);
             commands.Add(row);
