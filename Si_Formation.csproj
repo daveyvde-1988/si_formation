@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework><LangVersion>latest</LangVersion>
-    <AssemblyName>Si_Formation</AssemblyName><Version>3.16.2</Version>
+    <AssemblyName>Si_Formation</AssemblyName><Version>3.17.0</Version>
     <ServerRoot Condition="'$(ServerRoot)' == ''">$(MSBuildThisFileDirectory)..\..</ServerRoot>
   </PropertyGroup>
   <ItemGroup>

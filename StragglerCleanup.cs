@@ -19,7 +19,7 @@ namespace Si_Formation
 
         private static bool StragglerHasOwnedIntent(WaypointMember member)
         {
-            if(member.RestorePending||PendingWaypoint(member))return true;
+            if(member.RestorePending||member.DeferredReturn||PendingWaypoint(member))return true;
             if(!member.Barrier.Open||!member.Barrier.Advance||member.Processor.Orders.Count>0)return false;
             var agent=member.Unit.AIAgent;
             // Forced queue advancement can finish the final order while its
@@ -53,6 +53,25 @@ namespace Si_Formation
                 watch.Member=member;
                 if(member.Included)watch.OutsideSince=-1;
                 else if(watch.OutsideSince<0)StartStragglerTimer(watch,Time.time);
+            }
+        }
+
+        private static void TransferStragglerWatch(WaypointMember member)
+        {
+            if(!stragglerWatches.TryGetValue(member.Unit,out var watch)||!ReferenceEquals(watch.Member,member))return;
+            bool later=false;
+            foreach(var barrier in waypointBarriers)
+            {
+                if(ReferenceEquals(barrier,member.Barrier)){later=true;continue;}
+                if(!later)continue;
+                foreach(var candidate in barrier.Members)
+                    if(candidate.Unit==member.Unit&&!candidate.Removed&&candidate.Processor==member.Processor&&
+                        barrier.Owner==member.Barrier.Owner&&barrier.Team==member.Barrier.Team&&WaypointMemberOwned(candidate)&&
+                        (candidate.RestorePending||candidate.DeferredReturn||PendingWaypoint(candidate)))
+                    {
+                        watch.Member=candidate;
+                        return;
+                    }
             }
         }
 

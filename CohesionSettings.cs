@@ -251,8 +251,14 @@ namespace Si_Formation
                 string faction=CohesionFactionName(alien),command=alien?"aliencohesion":"cohesion";
                 AddSwitch(commands,alien?"!aliengroupcohesion":"!groupcohesion",faction+" group cohesion",alien?AlienCohesionEnabled:CohesionEnabled,
                     "Enable "+faction.ToLowerInvariant()+" custom pacing and eligible remembered-formation holding within MaximumRange. This faction's settings and switch are independent.",SwitchGroup);
-                if(alien)AddSlider(commands,"alienspread","Alien: Placement spacing scale",ServerSettings.AlienSpread,DefaultAlienSpread,
-                    "Scale Alien commander, FPS and rally spacing whether Alien cohesion is enabled or disabled. Physical clearance is retained.",group:CohesionFactionGroup(true));
+                if(alien)
+                {
+                    AddSlider(commands,"alienspread","Alien: Placement spacing scale",ServerSettings.AlienSpread,DefaultAlienSpread,
+                        "Scale Alien commander ground/large-air, FPS and rally spacing whether Alien cohesion is enabled or disabled. Lesser Spawn commander air uses its separate slider. Physical clearance is retained.",group:CohesionFactionGroup(true));
+                    AddSlider(commands,"lesserspawnairspace","Alien: Lesser Spawn air spacing",ServerSettings.LesserSpawnAirSpacing,DefaultLesserSpawnAirSpacing,
+                        "Extra commander spacing for Wasp, Dragonfly and Squid. 0% uses native line-footprint spacing with body clearance; +50% is 1.5x that baseline. Applies to new placements independently of other spacing controls.",
+                        unit:"% extra",group:CohesionFactionGroup(true),maximum:MaximumLesserSpawnAirSpacing,step:5);
+                }
                 foreach(var setting in cohesionSettingOrder.Where(setting=>setting.Alien==alien&&setting.Visible))
                 {
                     string label=faction+": "+setting.Label;

@@ -8,7 +8,7 @@ using Silica.AI;
 using SilicaAdminMod;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "3.16.2", "Local")]
+[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "3.17.0", "Local")]
 [assembly: MelonGame("Bohemia Interactive", "Silica")]
 [assembly: MelonOptionalDependencies("Admin Mod")]
 namespace Si_Formation
@@ -18,10 +18,12 @@ namespace Si_Formation
         private sealed class Settings
         {
             internal int Spacing=DefaultSpacing, DragSpacing=DefaultDragSpacing, Rally=DefaultRally, SizeInfluence=DefaultSizeInfluence, AlienSpread=DefaultAlienSpread, FpsSpacing=DefaultFpsSpacing, FpsDistance=DefaultFpsDistance, FpsAllowance=DefaultFpsAllowance;
+            internal int LesserSpawnAirSpacing=DefaultLesserSpawnAirSpacing;
             internal bool MovementFix=DefaultMovementFix;
         }
         private struct MoveState { internal bool Independent; internal LayoutContext Layout; internal CohesionDispatch Cohesion; internal MovementCommandDiagnostics Diagnostics; internal WaypointDispatch Waypoint; }
         private const int DefaultSpacing=35, DefaultDragSpacing=15, DefaultRally=20, DefaultSizeInfluence=0, DefaultAlienSpread=45, DefaultFpsSpacing=35, DefaultFpsDistance=10, DefaultFpsAllowance=15;
+        private const int DefaultLesserSpawnAirSpacing=50,MaximumLesserSpawnAirSpacing=200;
         private const bool DefaultMovementFix=true;
         private const bool DefaultDestinationLocalCohesion=true;
         private const float DefaultHumanWaypointWait=5,DefaultAlienWaypointWait=7,DefaultAlienCombatWait=10;
@@ -35,7 +37,7 @@ namespace Si_Formation
         {
             try
             {
-                foreach(string name in new[]{"formation","formationspace","dragspace","rallyspace","scout","movementfix","pathshortcut","sizeinfluence","alienspread","fpsspace","fpsdistance","fpsallowance","groupcohesion","cohesion","aliengroupcohesion","aliencohesion","cohesiondebug","travelcoverdisabler","destinationcohesion","waypointwait"})
+                foreach(string name in new[]{"formation","formationspace","dragspace","rallyspace","scout","movementfix","pathshortcut","sizeinfluence","alienspread","lesserspawnairspace","fpsspace","fpsdistance","fpsallowance","groupcohesion","cohesion","aliengroupcohesion","aliencohesion","cohesiondebug","travelcoverdisabler","destinationcohesion","waypointwait"})
                     if(PlayerMethods.FindPlayerCommandFromString(name)!=null||AdminMethods.FindAdminCommandFromString(name)!=null)
                         throw new InvalidOperationException("Command already registered: "+name+". Remove the old formation mod.");
                 LoadServerSettings();
@@ -69,6 +71,8 @@ namespace Si_Formation
                     "Checkpoint wait: human|alien|combat <seconds>|status.");
                 AdminMethods.RegisterAdminCommand("sizeinfluence",(p,a)=>TuningCommand(p,a,"sizeinfluence"),Power.Generic,"Server large-unit influence, 0..100%.");
                 AdminMethods.RegisterAdminCommand("alienspread",(p,a)=>TuningCommand(p,a,"alienspread"),Power.Generic,"Server Alien spacing scale, 0..100%.");
+                AdminMethods.RegisterAdminCommand("lesserspawnairspace",LesserSpawnAirSpacingCommand,Power.Generic,
+                    "Lesser Spawn commander air spacing, 0..200 percent extra over native footprint spacing, or status.");
                 AdminMethods.RegisterAdminCommand("fpsspace",(p,a)=>TuningCommand(p,a,"fpsspace"),Power.Generic,"Server FPS spacing, 0..100%.");
                 AdminMethods.RegisterAdminCommand("fpsdistance",(p,a)=>TuningCommand(p,a,"fpsdistance"),Power.Generic,"Server FPS distance scale, 0..100%.");
                 AdminMethods.RegisterAdminCommand("fpsallowance",(p,a)=>TuningCommand(p,a,"fpsallowance"),Power.Generic,"Server FPS movement allowance, 1..100m.");

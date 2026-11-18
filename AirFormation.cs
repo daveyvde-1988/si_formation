@@ -17,6 +17,12 @@ namespace Si_Formation
             return name.IndexOf("Colossus",StringComparison.OrdinalIgnoreCase)>=0||
                 name.IndexOf("Defiler",StringComparison.OrdinalIgnoreCase)>=0;
         }
+        private static bool IsLesserSpawnAir(Unit unit)
+        {
+            if(!unit.ObjectInfo||!IsAlienTeam(unit.Team))return false;
+            string name=unit.ObjectInfo.name;
+            return name=="ObjectInfo_Alien_Wasp"||name=="ObjectInfo_Alien_Dragonfly"||name=="ObjectInfo_Alien_Squid";
+        }
         private static float AirFormationPitch(List<Unit> aircraft)
         {
             var ordinary=aircraft.Where(unit=>!SeparateLargeFlyer(unit)).ToList();
@@ -40,6 +46,7 @@ namespace Si_Formation
                 maxX=ground.Max(item=>Vector3.Dot(item.Value-anchor,right)+Radius(item.Key));
                 airAnchor+=forward*(rearEdge-50);
             }
+            float formationMinX=minX,formationMaxX=maxX;
             foreach(var unit in aircraft)points.Remove(unit);
             var eligible=aircraft.Where(FormationEligible).ToList();
             var units=eligible.Where(unit=>!SeparateLargeFlyer(unit)).OrderByDescending(unit=>Vector3.Dot(unit.transform.position,forward)).ToList();
@@ -73,18 +80,40 @@ namespace Si_Formation
                     }
                 }
             }
-            // Large flyers have their own rear slots and physical clearance.
-            // Their dimensions never enter the ordinary flyers' cell metrics.
-            float rear=accepted.Count>0?accepted.Min(item=>Vector3.Dot(item.Value-airAnchor,forward)-Radius(item.Key)):0;
-            bool hasFront=accepted.Count>0;
-            foreach(var unit in eligible.Where(SeparateLargeFlyer).OrderByDescending(Radius))
+            // Pack large flyers independently behind the ordinary block. Keep the
+            // original ground width even when ordinary-air packing widened itself.
+            var largeFlyers=eligible.Where(SeparateLargeFlyer).OrderByDescending(Radius).ToList();
+            if(largeFlyers.Count==0)return;
+            float largestFlyer=largeFlyers.Max(Radius);
+            float largeCellWidth=largeFlyers.Max(unit=>AirCellSize(unit,largestFlyer,settings,scale,true));
+            float largeCellDepth=largeFlyers.Max(unit=>AirCellSize(unit,largestFlyer,settings,scale,false));
+            float largeMinX=formationMinX,largeMaxX=formationMaxX;
+            int largeColumns=Mathf.Min(largeFlyers.Count,Mathf.Max(1,Mathf.FloorToInt((largeMaxX-largeMinX)/largeCellWidth+.001f)+1));
+            bool compactLarge=ground.Length==0||largeColumns<2;
+            if(compactLarge)
             {
-                float halfDepth=Mathf.Max(Radius(unit)+.5f,AirCellSize(unit,Radius(unit),settings,scale,false)*.5f);
-                if(hasFront)rear-=halfDepth;
-                Vector3 desired=airAnchor+right*((minX+maxX)*.5f)+forward*rear;
-                StoreAirFormationSlot(unit,desired,points,accepted,airAnchor,forward,right,ground.Length>0,false,minX,maxX);
-                rear=points.TryGetValue(unit,out var point)?Vector3.Dot(point-airAnchor,forward)-halfDepth:rear-halfDepth;
-                hasFront=true;
+                largeColumns=largeFlyers.Count==1?1:Mathf.Clamp(
+                    Mathf.CeilToInt(Mathf.Sqrt(largeFlyers.Count*largeCellDepth/largeCellWidth)),2,largeFlyers.Count);
+                float width=largeCellWidth*(largeColumns-1),centre=(formationMinX+formationMaxX)*.5f;
+                largeMinX=centre-width*.5f;
+                largeMaxX=centre+width*.5f;
+            }
+            float largeRear=0;
+            if(accepted.Count>0)
+                largeRear=accepted.Min(item=>Vector3.Dot(item.Value-airAnchor,forward)-Radius(item.Key))-
+                    Mathf.Max(largestFlyer+.5f,largeCellDepth*.5f);
+            for(int start=0;start<largeFlyers.Count;start+=largeColumns)
+            {
+                var row=largeFlyers.Skip(start).Take(largeColumns).OrderBy(unit=>Vector3.Dot(unit.transform.position,right)).ToArray();
+                float rowWidth=compactLarge?Mathf.Min(largeMaxX-largeMinX,largeCellWidth*(row.Length-1)):largeMaxX-largeMinX;
+                for(int i=0;i<row.Length;i++)
+                {
+                    float x=(largeMinX+largeMaxX)*.5f;
+                    if(row.Length>1)x+=Mathf.Lerp(-rowWidth*.5f,rowWidth*.5f,(float)i/(row.Length-1));
+                    Vector3 desired=airAnchor+right*x+forward*(largeRear-start/largeColumns*largeCellDepth);
+                    StoreAirFormationSlot(row[i],desired,points,accepted,airAnchor,forward,right,
+                        ground.Length>0,false,largeMinX,largeMaxX);
+                }
             }
         }
         private static void StoreAirFormationSlot(Unit unit,Vector3 desired,Dictionary<Unit,Vector3> points,
@@ -109,8 +138,17 @@ namespace Si_Formation
         private static float AirCellSize(Unit unit,float largest,Settings settings,float scale,bool width)
         {
             float radius=Radius(unit),body=width?unit.PhysicalBounds.size.x:unit.PhysicalBounds.size.z;
+            float physicalFloor=Mathf.Max(radius*2+.5f,body+.5f);
+            if(IsLesserSpawnAir(unit))
+            {
+                // Native line packing uses the body footprint plus a 4m gap.
+                // Use that baseline for both clicks and drags, independently of
+                // the shared spacing controls, and retain full physical clearance.
+                float baseline=Mathf.Max(Mathf.Max(1,body)+4,physicalFloor);
+                return baseline*(1+settings.LesserSpawnAirSpacing/100f);
+            }
             float influenced=Mathf.Lerp(radius,largest,settings.SizeInfluence/100f);
-            return Mathf.Max(Mathf.Max(radius*2+.5f,body+.5f),(influenced+2)*scale);
+            return Mathf.Max(physicalFloor,(influenced+2)*scale);
         }
         private static bool TryAirFormationPoint(Unit unit,Vector3 desired,out Vector3 point)
         {

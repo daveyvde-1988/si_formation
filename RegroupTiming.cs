@@ -37,7 +37,18 @@ namespace Si_Formation
             foreach(var member in barrier.Members)
             {
                 if(!WaypointMemberOwned(member))member.Removed=true;
-                if(barrier.Advance&&!member.Removed&&member.RestorePending){pending=true;continue;}
+                if(barrier.Advance&&!member.Removed&&member.DeferredReturn)
+                {
+                    if(ResumeDeferredAlienReturn(member))pending=true;
+                    continue;
+                }
+                if(barrier.Advance&&!member.Removed&&member.RestorePending)
+                {
+                    // An expired intermediate leg must not be restored behind
+                    // later waypoints after its regroup deadline has passed.
+                    member.RestorePending=false;
+                    member.Removed=true;
+                }
                 if(barrier.Advance&&!member.Removed&&PendingWaypoint(member))
                 {
                     RefreshWaypointCombat(member);

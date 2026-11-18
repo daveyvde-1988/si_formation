@@ -21,7 +21,7 @@ namespace Si_Formation
             internal uint[] Before;
             internal Vector3 Destination;
             internal bool Arrived,Removed,Included=true,Reverse;
-            internal bool InCombat,CombatInterrupted,ReturnAfterCombat,RestorePending,LongRange;
+            internal bool InCombat,CombatInterrupted,ReturnAfterCombat,RestorePending,DeferredReturn,LongRange;
             internal float LastCombatAt=-1,NextResumeAt;
             internal AgentMoveSpeed Mode;
             internal float NominalSpeed;
@@ -180,8 +180,10 @@ namespace Si_Formation
             if(!Active||!Game.GetIsServer()||!waypointOrders.TryGetValue(order,out var member)||order.Id!=member.Id)return;
             if(!CurrentWaypoint(member))return;
             RefreshWaypointCombat(member);
+            bool resumed=!member.DeferredReturn&&ResumeAlienWaypoint(member);
             bool arrived=IsFormationAir(member.Unit)?HorizontalWaypointArrival(member):result;
-            if(member.CombatInterrupted&&!HorizontalWaypointArrival(member))arrived=false;
+            if(member.CombatInterrupted&&(member.InCombat||member.ReturnAfterCombat||resumed)&&
+                !HorizontalWaypointArrival(member))arrived=false;
             bool changed=arrived&&!member.Arrived;
             if(changed)MarkWaypointArrival(member,IsFormationAir(member.Unit)?"horizontal air arrival":"native completion");
             SweepWaypoint(member.Barrier,changed);
@@ -201,9 +203,6 @@ namespace Si_Formation
             }
             if(member.Barrier.Open)
             {
-                if(member.Barrier.Advance&&(member.InCombat||
-                    member.CombatInterrupted&&!HorizontalWaypointArrival(member)&&!HasLaterWaypoint(member)))
-                {result=false;return;}
                 if(member.Barrier.Advance)result=true;
                 RemoveWaypointMapping(member);
             }
@@ -246,7 +245,8 @@ namespace Si_Formation
             }
             if(barrier.Activated<0)
             {
-                if(!barrier.Members.Any(CurrentWaypoint)&&!barrier.Members.Any(ReadyAfterCombatOrder))return;
+                if(!barrier.Members.Any(CurrentWaypoint)&&!barrier.Members.Any(ReadyAfterCombatOrder)&&
+                    !CanActivateWaypointRecovery(barrier))return;
                 ActivateRegroup(barrier);
                 if(barrier.Open)return;
             }
@@ -276,7 +276,16 @@ namespace Si_Formation
         }
         private static void OpenWaypoint(WaypointBarrier barrier,string reason,bool advance)
         {
+            if(advance&&IsAlienTeam(barrier.Team))
+                foreach(var member in barrier.Members)
+                    if(!member.Removed&&!HasLaterWaypoint(member)&&
+                        (member.RestorePending||member.ReturnAfterCombat&&
+                            (member.InCombat||!HorizontalWaypointArrival(member))))
+                        member.DeferredReturn=true;
             barrier.Open=true;barrier.Reason=reason;barrier.Advance=advance;
+            if(advance)
+                foreach(var member in barrier.Members)
+                    if(!member.Removed)TransferStragglerWatch(member);
             if(CohesionDebugEnabled||barrier.Watched)
                 MelonLogger.Msg("[Waypoint #"+barrier.Id+"] release="+reason+" outstanding="+
                     barrier.Members.Count(member=>!member.Removed&&member.Included&&!member.Arrived)+
@@ -298,7 +307,8 @@ namespace Si_Formation
             HashSet<Unit> restoreUnits=null;
             foreach(var barrier in snapshot)
                 foreach(var member in barrier.Members)
-                    if(!member.Removed&&member.RestorePending&&Time.time>=member.NextResumeAt&&WaypointMemberOwned(member))
+                    if(!barrier.Open&&!member.Removed&&!member.DeferredReturn&&member.RestorePending&&
+                        Time.time>=member.NextResumeAt&&WaypointMemberOwned(member))
                     {
                         if(restoreUnits==null)restoreUnits=new HashSet<Unit>();
                         restoreUnits.Add(member.Unit);

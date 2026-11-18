@@ -11,6 +11,7 @@ namespace Si_Formation
         private static MelonPreferences_Category serverPreferences;
         private static MelonPreferences_Entry<bool> enabledPreference,movementFixPreference,destinationLocalCohesionPreference;
         private static MelonPreferences_Entry<int> pathfindingShortcutPreference;
+        private static MelonPreferences_Entry<int> lesserSpawnAirSpacingPreference;
         private const int DefaultPathfindingShortcutDistance=1000,MaximumPathfindingShortcutDistance=2000;
         private static int PathfindingShortcutDistance=DefaultPathfindingShortcutDistance;
         private static bool DestinationLocalCohesionEnabled;
@@ -57,6 +58,16 @@ namespace Si_Formation
             ServerSettings.Rally=LoadTuning("Rally",DefaultRally,0,"Production rally spacing percentage: 0=baseline, 30=3x, 100=10x; physical clearance is retained.");
             ServerSettings.SizeInfluence=LoadTuning("SizeInfluence",DefaultSizeInfluence,0,"Large-unit footprint influence, 0..100 percent.");
             ServerSettings.AlienSpread=LoadTuning("AlienSpread",DefaultAlienSpread,0,"Alien spacing scale, 0..100 percent; physical clearance is retained.");
+            lesserSpawnAirSpacingPreference=serverPreferences.CreateEntry("LesserSpawnAirSpacing",DefaultLesserSpawnAirSpacing,
+                description:"Extra commander formation spacing for Wasp, Dragonfly and Squid. 0..200 percent above native line-footprint spacing with physical clearance; 50 means 1.5x. Independent of other spacing scales.");
+            int lesserAirSpacing=lesserSpawnAirSpacingPreference.Value;
+            if(lesserAirSpacing<0||lesserAirSpacing>MaximumLesserSpawnAirSpacing)
+            {
+                MelonLogger.Warning("Invalid Lesser Spawn air spacing; using "+DefaultLesserSpawnAirSpacing+" percent extra.");
+                lesserAirSpacing=DefaultLesserSpawnAirSpacing;
+                lesserSpawnAirSpacingPreference.Value=lesserAirSpacing;
+            }
+            ServerSettings.LesserSpawnAirSpacing=lesserAirSpacing;
             ServerSettings.FpsSpacing=LoadTuning("FpsSpacing",DefaultFpsSpacing,0,"FPS unit spacing percentage: 0=baseline, 30=3x, 100=10x.");
             ServerSettings.FpsDistance=LoadTuning("FpsDistance",DefaultFpsDistance,0,"FPS distance-to-player scale, 0..100 percent. 10=1.667x the 5m plus player-radius baseline; physical clearance is retained.");
             ServerSettings.FpsAllowance=LoadTuning("FpsAllowance",DefaultFpsAllowance,1,"FPS movement allowance, 1..100 metres; convoy threshold is twice this value, with a 10m minimum.");
@@ -91,6 +102,7 @@ namespace Si_Formation
             tuningPreferences["Rally"].Value=ServerSettings.Rally;
             tuningPreferences["SizeInfluence"].Value=ServerSettings.SizeInfluence;
             tuningPreferences["AlienSpread"].Value=ServerSettings.AlienSpread;
+            lesserSpawnAirSpacingPreference.Value=ServerSettings.LesserSpawnAirSpacing;
             tuningPreferences["FpsSpacing"].Value=ServerSettings.FpsSpacing;
             tuningPreferences["FpsDistance"].Value=ServerSettings.FpsDistance;
             tuningPreferences["FpsAllowance"].Value=ServerSettings.FpsAllowance;
@@ -131,6 +143,21 @@ namespace Si_Formation
                 if(!SaveSettings(p))return;
             }
             Reply(p,"Pathfinding shortcut pass: "+PathfindingShortcutDistance+"m; 0 disables corner shortcuts. Applies to newly processed native vehicle paths.");
+        }
+        private static void LesserSpawnAirSpacingCommand(Player p,string args)
+        {
+            if(!ready||!Game.GetIsServer()||!p)return;
+            string value=Argument(args);
+            if(value!=""&&value!="status")
+            {
+                if(!DemandAdmin(p))return;
+                if(!int.TryParse(value,System.Globalization.NumberStyles.Integer,System.Globalization.CultureInfo.InvariantCulture,out int extra)||
+                    extra<0||extra>MaximumLesserSpawnAirSpacing)
+                {Reply(p,"/lesserspawnairspace <0..200 percent extra> | status");return;}
+                ServerSettings.LesserSpawnAirSpacing=extra;
+                if(!SaveSettings(p))return;
+            }
+            Reply(p,"Lesser Spawn air spacing: +"+ServerSettings.LesserSpawnAirSpacing+"% over native line-footprint spacing. Applies to new Wasp, Dragonfly and Squid commander placements.");
         }
         private static void WaypointWaitCommand(Player p,string args)
         {
