@@ -8,7 +8,7 @@ using Silica.AI;
 using SilicaAdminMod;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "3.17.0", "Local")]
+[assembly: MelonInfo(typeof(Si_Formation.Formations), "Si_Formation", "3.18.0", "Local")]
 [assembly: MelonGame("Bohemia Interactive", "Silica")]
 [assembly: MelonOptionalDependencies("Admin Mod")]
 namespace Si_Formation
@@ -43,6 +43,7 @@ namespace Si_Formation
                 LoadServerSettings();
                 LoadTravelCoverSettings();
                 LoadCohesionSettings();
+                InstallCommanderSquadProtection();
                 HarmonyInstance.Patch(AccessTools.Method(typeof(StrategyMode),"PerformMoveAttack"),
                     prefix:new HarmonyMethod(typeof(Formations),nameof(BeginMove)){priority=HarmonyLib.Priority.First},
                     finalizer:new HarmonyMethod(typeof(Formations),nameof(EndMove)));

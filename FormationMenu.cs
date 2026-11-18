@@ -50,7 +50,7 @@ namespace Si_Formation
         // handlers supply their own values/formatting; no layout or preference is created.
         private static void FormationStatus(Player p)
         {
-            Reply(p,"Si_Formation 3.17.0; server-wide configuration; enabled "+(ServerEnabled?"ON":"OFF")+"; effective "+(Active?"ON":"OFF")+".");
+            Reply(p,"Si_Formation 3.18.0; server-wide configuration; enabled "+(ServerEnabled?"ON":"OFF")+"; effective "+(Active?"ON":"OFF")+".");
             SpacingCommand(p,"/formationspace status");
             RallyCommand(p,"/rallyspace status");
             foreach(string command in new[]{"dragspace","sizeinfluence","alienspread","fpsspace","fpsdistance","fpsallowance"})
